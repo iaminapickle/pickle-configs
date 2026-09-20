@@ -1,3 +1,8 @@
+# Shared by the CachyOS box and WSL. Branches at runtime rather than being a
+# chezmoi template, so the file stays plain and `chezmoi re-add` keeps working
+# on it. Machine-specific settings belong in ~/.zshrc.local (untracked), which
+# is sourced at the very bottom.
+
 # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
 # Initialization code that may require console input (password prompts, [y/n]
 # confirmations, etc.) must go above this block; everything else may go below.
@@ -5,29 +10,154 @@ if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
 
-source /usr/share/cachyos-zsh-config/cachyos-config.zsh
-unsetopt correct_all correct
+# ---------------------------------------------------------------------------
+# Plugin framework
+# ---------------------------------------------------------------------------
+# CachyOS ships a curated zsh config; everywhere else (Ubuntu under WSL) use
+# oh-my-zsh plus znap. Both end up on powerlevel10k, so everything below this
+# block is identical either way.
+if [[ -r /usr/share/cachyos-zsh-config/cachyos-config.zsh ]]; then
+    source /usr/share/cachyos-zsh-config/cachyos-config.zsh
+    unsetopt correct_all correct
+else
+    export ZSH="$HOME/.oh-my-zsh"
+    ZSH_THEME="powerlevel10k/powerlevel10k"
+    plugins=(git copypath direnv)
+    [[ -r "$ZSH/oh-my-zsh.sh" ]] && source "$ZSH/oh-my-zsh.sh"
+
+    # znap: bootstrap on first run, then load the extras.
+    [[ -r ~/zsh-plugins/znap/znap.zsh ]] ||
+        git clone --depth 1 -- \
+            https://github.com/marlonrichert/zsh-snap.git ~/zsh-plugins/znap
+    source ~/zsh-plugins/znap/znap.zsh
+    zstyle ':znap:*' repos-dir ~/zsh-plugins
+    znap source fdellwing/zsh-bat
+    znap source zsh-users/zsh-syntax-highlighting
+fi
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
-[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
-eval "$(direnv hook zsh)"
+typeset -g POWERLEVEL9K_INSTANT_PROMPT=quiet
 
+# fzf ships its shell integration two different ways depending on version.
+if [ -f ~/.fzf.zsh ]; then
+    source ~/.fzf.zsh
+elif command -v fzf >/dev/null; then
+    source <(fzf --zsh)
+fi
+
+eval "$(direnv hook zsh)"
+export PATH="$HOME/.local/bin:$PATH"
+
+# ---------------------------------------------------------------------------
+# Clipboard
+# ---------------------------------------------------------------------------
+# Wayland on the CachyOS box, clip.exe under WSL (full path: PATH interop can
+# be switched off), X11 as a fallback. Everything that copies goes through
+# _clip so the rest of the file doesn't care.
+if command -v wl-copy >/dev/null 2>&1; then
+    _clip() { wl-copy }
+elif [[ -x /mnt/c/Windows/System32/clip.exe ]]; then
+    _clip() { /mnt/c/Windows/System32/clip.exe }
+elif command -v xclip >/dev/null 2>&1; then
+    _clip() { xclip -selection clipboard }
+else
+    _clip() { cat }
+fi
+
+# Pipe stdin to the clipboard, e.g. `cat file | toc`
+toc() { printf '%s' "$(cat)" | _clip }
+
+# ---------------------------------------------------------------------------
+# Aliases
+# ---------------------------------------------------------------------------
 alias vim="nvim"
 alias vimzrc="nvim ~/.zshrc"
 alias srczrc="source ~/.zshrc"
-alias vpn="openvpn3 session-start --config ~/configs/work.ovpn"
-alias vpncheck="openvpn3 sessions-list"
-alias reboot-to-windows="sudo efibootmgr --bootnext 0000 && sudo reboot"
 
-typeset -g POWERLEVEL9K_INSTANT_PROMPT=quiet
+# Desktop-only; both shell out to things that only exist on the CachyOS box.
+if command -v openvpn3 >/dev/null 2>&1; then
+    alias vpn="openvpn3 session-start --config ~/configs/work.ovpn"
+    alias vpncheck="openvpn3 sessions-list"
+fi
+if command -v efibootmgr >/dev/null 2>&1; then
+    alias reboot-to-windows="sudo efibootmgr --bootnext 0000 && sudo reboot"
+fi
+
+# The mirror image, for the WSL side of the same dual-boot box: reboot
+# straight into CachyOS. Windows' equivalent of `efibootmgr --bootnext` is a
+# one-shot firmware boot sequence set through bcdedit {fwbootmgr}.
+#
+# Reading *and* setting it need Administrator, so the work happens in an
+# elevated PowerShell. The UAC prompt is the speed bump here that sudo is on
+# the Linux side. The script is passed as -EncodedCommand (base64 UTF-16LE)
+# rather than a temp file: no quoting to get wrong, and nothing to clean up.
+#
+# The entry is matched by description, not a hardcoded GUID, so it survives a
+# bootloader reinstall. The default pattern covers the bootloaders CachyOS
+# actually installs -- Limine is its current default, and the firmware entry
+# is named after the bootloader, not the distro. Note "UEFI OS" is the generic
+# \EFI\BOOT\BOOTX64.EFI fallback entry and is deliberately not matched.
+#
+# If the guess is wrong, pin it in ~/.zshrc.local:
+#   REBOOT_TO_CACHY_ENTRY='Limine'
+if [[ "$(uname -r)" == *[Mm]icrosoft* ]] && [[ -x /mnt/c/Windows/System32/bcdedit.exe ]]; then
+    reboot-to-cachy() {
+        local pattern="${REBOOT_TO_CACHY_ENTRY:-CachyOS|Limine|Linux Boot Manager|GRUB|systemd-boot}"
+        local body enc
+        body=$(cat <<'PS'
+$ErrorActionPreference = 'Stop'
+
+function Fail($msg) {
+    Write-Host $msg -ForegroundColor Red
+    Write-Host ''
+    Write-Host 'Press any key to close...'
+    $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+    exit 1
+}
+
+$raw = (& bcdedit /enum firmware) -join "`n"
+
+$found = @()
+foreach ($b in [regex]::Split($raw, '(?:\r?\n){2,}')) {
+    $id = [regex]::Match($b, '(?m)^identifier\s+(\S+)')
+    $ds = [regex]::Match($b, '(?m)^description\s+(.+?)\s*$')
+    if ($id.Success -and $ds.Success) {
+        $found += [pscustomobject]@{ Id = $id.Groups[1].Value; Desc = $ds.Groups[1].Value }
+    }
+}
+
+$list = ($found | ForEach-Object { "  {0,-36} {1}" -f $_.Desc, $_.Id }) -join "`n"
+$hits = @($found | Where-Object { $_.Desc -match $pattern })
+
+if ($hits.Count -eq 0) {
+    Fail "No firmware entry matched /$pattern/.`n`nEntries on this machine:`n$list`n`nSet REBOOT_TO_CACHY_ENTRY in ~/.zshrc.local to match one."
+}
+if ($hits.Count -gt 1) {
+    Fail "Pattern /$pattern/ matched more than one entry:`n$list`n`nNarrow it with REBOOT_TO_CACHY_ENTRY in ~/.zshrc.local."
+}
+
+& bcdedit /set "{fwbootmgr}" bootsequence $hits[0].Id | Out-Null
+if ($LASTEXITCODE -ne 0) { Fail "bcdedit failed to set bootsequence (exit $LASTEXITCODE)" }
+
+Write-Host ("Next boot: {0}. Rebooting..." -f $hits[0].Desc) -ForegroundColor Magenta
+Start-Sleep -Seconds 1
+& shutdown /r /t 0
+PS
+)
+        enc=$(printf '%s\n%s' "\$pattern = '$pattern'" "$body" \
+              | iconv -f UTF-8 -t UTF-16LE | base64 -w0)
+        powershell.exe -NoProfile -Command \
+            "Start-Process powershell -Verb RunAs -ArgumentList '-NoProfile','-EncodedCommand','$enc'"
+    }
+fi
 
 alias gitb="git branch"
 alias gitdlb="git branch -d"
 alias gitad="git add ."
 alias gitap="git add -p"
 alias gita="git add"
-alias gitl="git log"
+alias gitl="git log -w -m --first-parent --name-status"
 alias gitc="git commit"
 alias gitcm="git commit -m"
 alias gitco="git checkout"
@@ -53,7 +183,17 @@ alias gitbl="git blame -w -m --first-parent"
 alias gitlp="git log -p -w -m --first-parent --name-status"
 alias gitcs="git commit --signoff"
 alias gitlf="git log --follow -p -- "
-alias gitcbr="git rev-parse --abbrev-ref HEAD | tr -d '\n' | xclip -selection clipboard"
+alias gitcbr="git rev-parse --abbrev-ref HEAD | tr -d '\n' | _clip"
+alias gitclh="git clh"
+alias gitclh2="git clh2"
+alias gitclh3="git clh3"
+alias gitlgo="git log --oneline --graph"
+alias t1="tree -L 1 -F"
+alias t2="tree -L 2 -F"
+
+# ---------------------------------------------------------------------------
+# Git helpers
+# ---------------------------------------------------------------------------
 
 # Print the default branch of a remote (default: origin).
 #
@@ -62,6 +202,10 @@ alias gitcbr="git rev-parse --abbrev-ref HEAD | tr -d '\n' | xclip -selection cl
 # remote once; set-head caches the answer in the ref so the next call is local
 # again. If the remote's default branch changes later the ref goes stale;
 # `git remote set-head origin -a` refreshes it.
+#
+# Asking the remote is what makes this portable: repos whose default branch is
+# neither main nor master resolve correctly without hardcoding a candidate
+# list, which also keeps workplace branch names out of this file.
 git-default-branch() {
     local remote ref
     remote=${1:-origin}
@@ -133,13 +277,76 @@ git-prune-branches() {
     done
 }
 
-alias gitclh="git clh"
-alias gitclh2="git clh2"
-alias gitclh3="git clh3"
-alias gitlgo="git log --oneline --graph"
-alias t1="tree -L 1 -F"
-alias t2="tree -L 2 -F"
+# ---------------------------------------------------------------------------
+# Misc helpers
+# ---------------------------------------------------------------------------
 
+# Ping-sweep a subnet to find alive hosts
+# Usage: pingsweep 192.168.12   (sweeps 192.168.12.0/24)
+#        pingsweep 192.168       (sweeps 192.168.0.0/16)
+pingsweep() {
+  local prefix="$1"
+  if [[ -z "$prefix" ]]; then
+    echo "Usage: pingsweep <prefix>"
+    echo "  3-octet: pingsweep 192.168.12  → sweeps 192.168.12.0/24"
+    echo "  2-octet: pingsweep 192.168     → sweeps 192.168.0.0/16"
+    return 1
+  fi
+
+  # Strip any trailing dot
+  prefix="${prefix%.}"
+
+  # Count dots to determine prefix length
+  local dot_count=$(echo "$prefix" | tr -cd '.' | wc -c)
+
+  local target
+  if (( dot_count == 1 )); then
+    target="${prefix}.0.0/16"
+  else
+    target="${prefix}.0/24"
+  fi
+
+  echo "🔍 Sweeping ${target}..."
+
+  local results
+  results=$(nmap -sn -n -T4 --max-retries 1 "$target" 2>/dev/null \
+    | grep 'Nmap scan report for' \
+    | awk '{print $NF}' \
+    | tr -d '()')
+
+  if [[ -z "$results" ]]; then
+    echo "❌ No hosts responded on ${target}"
+    return 1
+  fi
+
+  echo "✅ Alive hosts:"
+  printf '  %s\n' ${(f)results}
+}
+
+# ---------------------------------------------------------------------------
+# Environment
+# ---------------------------------------------------------------------------
+export NVM_DIR="$HOME/.config/nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+
+[ -f "$HOME/.local/bin/env" ] && . "$HOME/.local/bin/env"
+
+# The CachyOS box gets an agent from gnome-keyring; WSL has to start its own.
+if [[ "$(uname -r)" == *[Mm]icrosoft* ]]; then
+    if [ -z "$SSH_AUTH_SOCK" ] || ! ssh-add -l >/dev/null 2>&1; then
+        eval "$(ssh-agent -s)" >/dev/null
+    fi
+fi
+
+# Unbind Ctrl-V (quoted-insert) so an accidental Ctrl-V (instead of
+# Ctrl-Shift-V) is a no-op instead of inserting literal control characters
+# like ^V
+bindkey -r "^V"
+
+# ---------------------------------------------------------------------------
+# Greeting
+# ---------------------------------------------------------------------------
 DaySuffix() {
   case `date +%e` in
     1|21|31) echo "st";;
@@ -164,3 +371,9 @@ echo "#########################/ /######\ \############/ /######################
 echo "| | | | | | | | | | | | |\/ | | | |\/ | | | | | |\/ | | | | | | | | | | | |"
 echo "|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|"
 echo "          Welcome back $USER! Today is $start_day_name $start_day$day_suffix $start_month_year          "
+
+# ---------------------------------------------------------------------------
+# Machine-local overrides -- untracked on purpose. Anything specific to one
+# box, or to work, lives here and never reaches the repo.
+# ---------------------------------------------------------------------------
+[[ -r ~/.zshrc.local ]] && source ~/.zshrc.local

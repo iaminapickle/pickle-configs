@@ -1,3 +1,12 @@
+{{- /* Clipboard command for the `clh` aliases. Wayland on the CachyOS box,
+       clip.exe under WSL (by full path: PATH interop can be turned off),
+       and clip on native Windows. */ -}}
+{{- $clip := "wl-copy" -}}
+{{- if eq .chezmoi.os "windows" -}}
+{{-   $clip = "clip" -}}
+{{- else if contains "microsoft" (lower (default "" .chezmoi.kernel.osrelease)) -}}
+{{-   $clip = "/mnt/c/Windows/System32/clip.exe" -}}
+{{- end -}}
 [core]
 	pager = delta
 	editor = nvim
@@ -7,9 +16,9 @@
 	email = {{ .email }}
 	name = {{ .name }}
 [alias]
-	clh = "!git rev-parse HEAD | wl-copy"
-	clh2 = "!git rev-parse HEAD~1 | wl-copy"
-	clh3 = "!git rev-parse HEAD~2 | wl-copy"
+	clh = "!git rev-parse HEAD | {{ $clip }}"
+	clh2 = "!git rev-parse HEAD~1 | {{ $clip }}"
+	clh3 = "!git rev-parse HEAD~2 | {{ $clip }}"
 [interactive]
 	diffFilter = delta --color-only
 [delta]

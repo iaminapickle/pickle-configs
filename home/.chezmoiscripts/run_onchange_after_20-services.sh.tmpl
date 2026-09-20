@@ -1,4 +1,6 @@
-{{- if eq .chezmoi.os "linux" -}}
+{{- /* Arch/CachyOS only: WSL is linux too, but has no pacman, no systemd
+       units to enable and no desktop groups to join. */ -}}
+{{- if and (eq .chezmoi.os "linux") (not (contains "microsoft" (lower (default "" .chezmoi.kernel.osrelease)))) -}}
 #!/usr/bin/env bash
 # Enable the units this setup expects. Idempotent.
 set -euo pipefail

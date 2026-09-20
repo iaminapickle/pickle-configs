@@ -1,0 +1,69 @@
+{{- if eq .chezmoi.os "windows" -}}
+# Build the GlazeWM helper binaries from the C# sources in
+# ~/.glzr/glazewm/scripts. Only the .cs files are tracked; the .exe are build
+# artifacts and stay out of git.
+#
+# No toolchain to install: both helpers target .NET Framework 4.x, whose
+# csc.exe ships with every Windows install. Nothing here needs the .NET SDK.
+#
+# Re-runs whenever either source changes -- chezmoi hashes this rendered
+# script, so the digests below are what trigger a rebuild:
+#   workspace-nav.cs {{ include "dot_glzr/glazewm/scripts/workspace-nav.cs" | sha256sum }}
+#   focus-sync.cs    {{ include "dot_glzr/glazewm/scripts/focus-sync.cs" | sha256sum }}
+
+$ErrorActionPreference = 'Stop'
+
+function Log($msg) { Write-Host ":: $msg" -ForegroundColor Magenta }
+
+$scripts = Join-Path $env:USERPROFILE '.glzr\glazewm\scripts'
+
+$csc = Get-ChildItem 'C:\Windows\Microsoft.NET\Framework64\v4.*\csc.exe' -ErrorAction SilentlyContinue |
+       Sort-Object FullName |
+       Select-Object -Last 1
+if (-not $csc) {
+    Write-Warning "no .NET Framework 4.x csc.exe found -- skipping GlazeWM helper build."
+    Write-Warning "workspace-nav.exe and focus-sync.exe will be missing; the lwin+N"
+    Write-Warning "workspace bindings and empty-monitor focus fix won't work until built."
+    return
+}
+
+# focus-sync runs persistently, so its .exe is locked while GlazeWM is up.
+# Stop it, rebuild, and let the caller restart GlazeWM to bring it back.
+$wasRunning = [bool](Get-Process focus-sync -ErrorAction SilentlyContinue)
+if ($wasRunning) {
+    Log "stopping focus-sync to unlock its binary"
+    Stop-Process -Name focus-sync -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Milliseconds 300
+}
+
+# -target:winexe matters: these are bound to keys, and a console subsystem
+# binary flashes a window on every single press.
+$builds = @(
+    @{ Name = 'workspace-nav'; Refs = @('System.Web.Extensions.dll') },
+    @{ Name = 'focus-sync'
+       Refs = @('System.Web.Extensions.dll', 'System.Windows.Forms.dll', 'System.Drawing.dll') }
+)
+
+foreach ($b in $builds) {
+    $src = Join-Path $scripts "$($b.Name).cs"
+    $out = Join-Path $scripts "$($b.Name).exe"
+    if (-not (Test-Path $src)) {
+        Write-Warning "missing source: $src -- skipped"
+        continue
+    }
+
+    $cscArgs = @('-nologo', '-optimize+', '-target:winexe', "-out:$out")
+    $cscArgs += $b.Refs | ForEach-Object { "-reference:$_" }
+    $cscArgs += $src
+
+    Log "building $($b.Name).exe"
+    & $csc.FullName @cscArgs
+    if ($LASTEXITCODE -ne 0) { throw "csc failed for $src (exit $LASTEXITCODE)" }
+}
+
+if ($wasRunning) {
+    Log "focus-sync was stopped -- reload GlazeWM (lwin+shift+r) to restart it"
+}
+
+Log "GlazeWM helpers built"
+{{- end -}}

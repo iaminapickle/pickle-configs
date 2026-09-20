@@ -1,0 +1,89 @@
+{{- if eq .chezmoi.os "windows" -}}
+# Package bootstrap, Windows half. Mirrors 10-packages.sh.tmpl on the Arch
+# side: re-runs automatically whenever the rendered package list below
+# changes, because chezmoi hashes the script contents.
+#
+# winget is the primary. It ships with Windows, so there is nothing to
+# bootstrap. Chocolatey is only touched if `packages.windows.choco` is
+# non-empty -- the same lazy pattern the Arch script uses for paru.
+#
+# Written for Windows PowerShell 5.1, which is what chezmoi invokes .ps1
+# scripts with by default.
+
+$ErrorActionPreference = 'Stop'
+
+function Log($msg)  { Write-Host ":: $msg" -ForegroundColor Magenta }
+function Warn($msg) { Write-Host "-- $msg" -ForegroundColor Yellow }
+
+# --- winget ----------------------------------------------------------------
+if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+    throw "winget not found. Install 'App Installer' from the Microsoft Store first."
+}
+
+$WingetPkgs = @(
+{{- range $group, $pkgs := .packages.windows.winget }}
+    # {{ $group }}
+{{- range $pkgs }}
+    '{{ . }}'
+{{- end }}
+{{- end }}
+)
+
+Log "syncing winget packages ($($WingetPkgs.Count))"
+
+foreach ($id in $WingetPkgs) {
+    # Check first rather than leaning on install's already-installed exit
+    # code: it keeps the output quiet and skips a pointless re-download.
+    # --source winget avoids the msstore ambiguity prompt, which would
+    # otherwise hang an unattended run.
+    winget list --id $id --exact --source winget *> $null
+    if ($LASTEXITCODE -eq 0) { continue }
+
+    Log "installing $id"
+    winget install --id $id --exact --source winget --silent `
+        --accept-package-agreements --accept-source-agreements `
+        --disable-interactivity
+
+    # 0x8A150061 is "package already installed" -- benign, and still
+    # reachable when the package came from another source.
+    if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne -1978335135) {
+        Warn "winget install $id failed (exit $LASTEXITCODE) -- continuing"
+    }
+}
+
+{{ if .packages.windows.choco }}
+# --- chocolatey (fallback only) --------------------------------------------
+# Reached only because packages.windows.choco is non-empty. Needs an elevated
+# shell; the install below is Chocolatey's own documented bootstrap.
+$ChocoPkgs = @(
+{{- range $group, $pkgs := .packages.windows.choco }}
+    # {{ $group }}
+{{- range $pkgs }}
+    '{{ . }}'
+{{- end }}
+{{- end }}
+)
+
+if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
+    $admin = ([Security.Principal.WindowsPrincipal] `
+        [Security.Principal.WindowsIdentity]::GetCurrent()
+    ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    if (-not $admin) {
+        throw "chocolatey packages are listed but choco is not installed, and installing it needs an elevated shell. Re-run 'chezmoi apply' as administrator."
+    }
+    Log "bootstrapping chocolatey"
+    Set-ExecutionPolicy Bypass -Scope Process -Force
+    [System.Net.ServicePointManager]::SecurityProtocol = `
+        [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+    Invoke-Expression ((New-Object System.Net.WebClient).DownloadString(
+        'https://community.chocolatey.org/install.ps1'))
+    $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' +
+                [Environment]::GetEnvironmentVariable('Path', 'User')
+}
+
+Log "syncing choco packages ($($ChocoPkgs.Count))"
+choco install @ChocoPkgs --yes --limit-output --no-progress
+if ($LASTEXITCODE -ne 0) { Warn "choco install returned $LASTEXITCODE" }
+{{ end }}
+Log "packages done"
+{{- end -}}

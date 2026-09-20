@@ -1,0 +1,55 @@
+{{- if eq .chezmoi.os "windows" -}}
+# Lock down the SSH private keys and the age identity with Windows ACLs.
+#
+# chezmoi's `private_` prefix sets Unix mode 0600, which means nothing on
+# Windows. Windows OpenSSH does its own permission check and flatly refuses a
+# private key that other principals can read:
+#
+#   Permissions for 'C:\Users\...\.ssh\work' are too open.
+#   This private key will be ignored.
+#
+# Files written under the user profile inherit the profile's ACL, which is not
+# tight enough, so inheritance has to be broken explicitly.
+#
+# This is `run_after_` rather than `run_onchange_` on purpose: chezmoi
+# re-creates these files whenever their content changes, and a re-created file
+# picks the inherited ACL back up. Re-asserting on every apply is a few
+# milliseconds and always correct.
+
+$ErrorActionPreference = 'Stop'
+
+function Log($msg) { Write-Host ":: $msg" -ForegroundColor Magenta }
+
+# The current user by SID, not by name -- account and group names are
+# localized, and "BUILTIN\Administrators" is not spelled the same everywhere.
+$sid = ([Security.Principal.WindowsIdentity]::GetCurrent()).User.Value
+
+$targets = @(
+    (Join-Path $env:USERPROFILE '.ssh\personal'),
+    (Join-Path $env:USERPROFILE '.ssh\work'),
+    (Join-Path $env:USERPROFILE '.config\chezmoi\key.txt')
+)
+
+# icacls is idempotent, so just assert the ACL rather than trying to detect
+# whether it is already correct -- the detection is fiddlier than the fix.
+foreach ($path in $targets) {
+    if (-not (Test-Path $path)) { continue }
+
+    # /inheritance:r drops inherited ACEs; /grant:r replaces rather than adds.
+    # The leading * means "this is a SID, not a name".
+    & icacls $path /inheritance:r /grant:r "*${sid}:(F)" *> $null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "icacls failed on $path (exit $LASTEXITCODE)"
+    }
+}
+
+# The .ssh directory itself: OpenSSH is less strict here than on the key
+# files, but a writable-by-others .ssh lets someone swap authorized_keys or
+# config out from under you.
+$sshDir = Join-Path $env:USERPROFILE '.ssh'
+if (Test-Path $sshDir) {
+    & icacls $sshDir /inheritance:r /grant:r "*${sid}:(OI)(CI)(F)" *> $null
+}
+
+Log "ssh key ACLs asserted"
+{{- end -}}

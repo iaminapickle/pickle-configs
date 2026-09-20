@@ -165,6 +165,63 @@ will **not** re-import `~/.gitconfig` once `home/dot_gitconfig.tmpl` exists —
 re-importing the flat live file would flatten the includeIf rule away. Edit it
 with `chezmoi edit ~/.gitconfig` instead.
 
+## WSL
+
+WSL is detected from the kernel string (`microsoft` in
+`.chezmoi.kernel.osrelease`), not from a prompt — a machine doesn't stop being
+WSL, so there's nothing to answer. It's a Linux box as far as `.chezmoi.os` is
+concerned, which is why the detection has to be finer-grained than the OS.
+
+What it shares:
+
+| | |
+|---|---|
+| tracked | `.gitconfig`, `.config/git/work.inc`, `.ssh/*`, `.zshrc`, `.p10k.zsh`, `.config/nvim` |
+| ignored | everything else |
+
+`.chezmoiignore` does this by ignoring `**` and then un-ignoring those two
+paths, so anything added to the repo later is excluded from WSL by default
+rather than included by accident.
+
+The scope is narrow because there's no desktop here at all — no Hyprland, no
+terminals, no theming. What *is* shared is shared through **runtime branching
+inside the file**, not chezmoi templates:
+
+- `dot_zshrc` picks its plugin framework by testing for
+  `/usr/share/cachyos-zsh-config/cachyos-config.zsh` — CachyOS's curated config
+  when present, oh-my-zsh + znap otherwise. Both land on powerlevel10k, so
+  everything after that block is identical.
+- `dot_config/wezterm/wezterm.lua` branches on `wezterm.target_triple`.
+
+Templates would have worked too, but a `.tmpl` suffix makes
+`scripts/add-configs.sh` refuse to re-import the file, and these are exactly
+the files that get tuned in place. Runtime branching keeps `chezmoi re-add`
+working on them, and keeps each file readable as the thing it is.
+
+Anything genuinely specific to one box goes in **`~/.zshrc.local`**, which
+`.zshrc` sources last and which chezmoi never tracks. That's where per-machine
+env vars belong — it's also what keeps workplace strings out of the repo.
+
+The three Arch bootstrap scripts carry the inverse guard — they render to
+nothing on WSL. Without it, `10-packages` would hit its `command -v pacman ||
+die` check on Ubuntu and fail the whole apply.
+
+The `clh` git aliases pipe to a clipboard command that differs per platform, so
+`dot_gitconfig.tmpl` picks it: `wl-copy` on the CachyOS box,
+`/mnt/c/Windows/System32/clip.exe` under WSL (by full path, since PATH interop
+can be switched off), `clip` on native Windows.
+
+Windows is narrowed the same way, to `.gitconfig`, `.config/git`, `.ssh` and
+`.glzr` — see [docs/windows.md](docs/windows.md). Only CachyOS gets the full
+set; the other two machines opt in to what they need. Both are ignore-`**`-then
+-un-ignore, so anything added to the repo later is excluded from them by
+default rather than included by accident.
+
+The same three keys therefore land on all three machines. On Windows the mode
+bits `private_` sets are meaningless, so `run_after_50-ssh-acl.ps1.tmpl`
+re-asserts the ACLs on every apply — without it Windows OpenSSH ignores the
+keys as "too open".
+
 ## What is deliberately not tracked
 
 `caelestia scheme` rewrites a pile of files every time the colourscheme

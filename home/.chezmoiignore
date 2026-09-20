@@ -24,30 +24,40 @@
 # Runtime / cache state that happens to live under .config
 .config/caelestia/monitors
 
+# GlazeWM helpers are built from the tracked .cs by
+# .chezmoiscripts/run_onchange_after_40-glazewm-scripts.ps1, never committed.
+.glzr/glazewm/scripts/*.exe
+
+# GlazeWM/Zebar runtime droppings and the editor's own config backups.
+.glzr/glazewm/errors.log
+.glzr/zebar/errors.log
+.glzr/glazewm/config.yaml.bak-*
+.glzr/zebar/settings.json.bak-*
+
 # ---------------------------------------------------------------------------
-# Windows: skip everything that only makes sense under Hyprland / zsh
+# Windows: same narrow approach as WSL. The Windows half of this repo is not
+# finished (see docs/windows.md) and several configs there are hand-adapted
+# already -- wezterm.lua launches WSL rather than zsh, and nvim/zed would land
+# at ~/.config paths that Windows apps don't read. So track only what is
+# actually ready: the git identity, the SSH keys, and the GlazeWM/Zebar setup.
+# Un-ignore more as docs/windows.md items get done.
 # ---------------------------------------------------------------------------
-{{ if ne .chezmoi.os "linux" }}
-.zshrc
-.p10k.zsh
-.config/caelestia
-.config/hypr
-.config/uwsm
-.config/fuzzel
-.config/cava
-.config/foot
-.config/kitty
-.config/alacritty
-.config/btop
-.config/fastfetch
-.config/micro
-.config/satty
-.config/MangoHud
-.config/vkBasalt
-.config/xsettingsd
-.config/mimeapps.list
-.config/dolphinrc
-.ssh/config
+{{ if eq .chezmoi.os "windows" }}
+**
+!.gitconfig
+!.config
+!.config/git
+!.config/git/**
+!.ssh
+!.ssh/**
+!.glzr
+!.glzr/**
+!.config/wezterm
+!.config/wezterm/**
+# re-assert the build artifacts, which the .glzr un-ignore above would undo
+.glzr/glazewm/scripts/*.exe
+.glzr/glazewm/errors.log
+.glzr/zebar/errors.log
 {{ end }}
 
 # ---------------------------------------------------------------------------
@@ -56,6 +66,29 @@
 {{ if eq .chezmoi.os "linux" }}
 Documents/PowerShell
 AppData
+.glzr
+{{ end }}
+
+# ---------------------------------------------------------------------------
+# WSL: Ubuntu under Windows, detected by the kernel string rather than a
+# prompt -- a machine does not stop being WSL. It shares this repo for one
+# reason only: the git identity split and the SSH keys. The shell here is
+# oh-my-zsh + znap rather than p10k + cachyos-zsh-config, nvim has diverged,
+# and there is no desktop at all, so everything else stays hand-maintained.
+# Ignore all, then un-ignore the two things we do want.
+# ---------------------------------------------------------------------------
+{{ if and (eq .chezmoi.os "linux") (contains "microsoft" (lower (default "" .chezmoi.kernel.osrelease))) }}
+**
+!.gitconfig
+!.config
+!.config/git
+!.config/git/**
+!.ssh
+!.ssh/**
+!.zshrc
+!.p10k.zsh
+!.config/nvim
+!.config/nvim/**
 {{ end }}
 
 # ---------------------------------------------------------------------------

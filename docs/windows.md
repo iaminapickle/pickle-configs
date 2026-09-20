@@ -7,9 +7,21 @@ What's missing is content.
 ## Already in place
 
 - `bootstrap.ps1` — installs chezmoi + age via winget, then `chezmoi init --apply`.
-- `packages.windows.winget` in `home/.chezmoidata/packages.yaml` — a starter list.
+- `packages.windows.winget` in `home/.chezmoidata/packages.yaml` — a starter
+  list, plus a `desktop` group (GlazeWM, Zebar, PowerToys).
 - `.chezmoiignore` skips every Hyprland/zsh/Linux-only target when
-  `.chezmoi.os != "linux"`, and skips the Windows targets on Linux.
+  `.chezmoi.os != "linux"`, and skips the Windows targets (`.glzr`, `AppData`,
+  `Documents/PowerShell`) on Linux.
+- **GlazeWM + Zebar configs are imported** — `home/dot_glzr/`, taken off the
+  live box. See "The GlazeWM helpers" below.
+- **SSH keys and the git identity apply on Windows**, with
+  `run_after_50-ssh-acl.ps1.tmpl` fixing the ACLs that `private_` can't.
+
+The Windows profile is deliberately narrow — `.chezmoiignore` ignores `**` and
+un-ignores only `.gitconfig`, `.config/git`, `.ssh` and `.glzr`. Everything
+else on this list is still hand-maintained on that box (`wezterm.lua` there
+launches WSL, not zsh) or would land at a path Windows apps don't read. Widen
+the un-ignore list as the items below get done, one at a time.
 
 ## To do
 
@@ -17,6 +29,13 @@ What's missing is content.
    guarded with `{{ if eq .chezmoi.os "windows" }}`, rendering
    `.packages.windows.winget` into `winget install` calls. chezmoi runs `.ps1`
    scripts through PowerShell automatically.
+
+   winget is the primary on purpose: it ships with Windows, `bootstrap.ps1`
+   already assumes it, and GlazeWM/Zebar are first-party winget packages.
+   Chocolatey still has better coverage of older dev tooling, so if something
+   turns out to be missing, add a `packages.windows.choco` key and have this
+   script bootstrap choco only when that key renders non-empty — the same
+   lazy pattern `10-packages.sh.tmpl` uses for paru.
 
 2. **PowerShell profile.** Target is
    `Documents/PowerShell/Microsoft.PowerShell_profile.ps1`. Port the useful
@@ -39,7 +58,90 @@ What's missing is content.
 4. **Paths in `.zshrc`-derived config.** The `vpn` alias and
    `reboot-to-windows` are Linux-only; leave them out of the PowerShell profile.
 
-5. **Age identity location.** `bootstrap.ps1` looks for
+5. **Zebar marketplace pack.** `dot_glzr/zebar/settings.json` points at
+   `mushfikurr.overline-zebar` (pinned to 1.0.5 by the receipt in
+   `dot_glzr/zebar/.marketplace/`). The pack itself is a marketplace download
+   that lands in `AppData/Roaming/zebar/downloads/` and is deliberately not
+   tracked — same call as `~/.local/share/nvim` on the Linux side. On a fresh
+   box, install it from Zebar's marketplace UI or the bar will come up empty.
+
+6. **Age identity location.** `bootstrap.ps1` looks for
    `%USERPROFILE%\.config\chezmoi\key.txt`. Keep that path so the config
    template's `joinPath .chezmoi.homeDir ".config/chezmoi/key.txt"` resolves on
    both platforms.
+
+## SSH keys on Windows
+
+Windows OpenSSH runs its own permission check and refuses a private key other
+principals can read:
+
+```
+Permissions for 'C:\Users\...\.ssh\work' are too open.
+This private key will be ignored.
+```
+
+chezmoi's `private_` prefix sets Unix mode 0600, which is meaningless on
+Windows, and a file written under the user profile inherits the profile's ACL.
+`run_after_50-ssh-acl.ps1.tmpl` breaks inheritance and grants only the current
+user, addressing them by **SID** rather than name (account and group names are
+localized). It covers `.ssh/personal`, `.ssh/work` and the age identity at
+`.config/chezmoi/key.txt`.
+
+It's `run_after_` rather than `run_onchange_` on purpose: chezmoi re-creates a
+file when its content changes, and a re-created file picks the inherited ACL
+back up, so the fix has to be re-asserted on every apply. `icacls` is
+idempotent, so this is cheap.
+
+## The GlazeWM helpers
+
+`dot_glzr/glazewm/scripts/` holds two C# helpers that the keybindings depend
+on. Only the `.cs` is tracked; `.chezmoiignore` excludes the `.exe`, which
+`run_onchange_after_40-glazewm-scripts.ps1.tmpl` builds on apply.
+
+Both target .NET Framework 4.x, so the compiler (`csc.exe`) is already on any
+Windows box — there is no SDK to install. They are built `-target:winexe` on
+purpose: a console-subsystem binary flashes a window on every keypress, and
+these are bound to `lwin+1..9`.
+
+- **`workspace-nav.exe`** — gives each monitor its own independent 1-9
+  workspace set. GlazeWM binds a workspace to a monitor statically, so the
+  config declares `1`-`9` on monitor 0 and `11`-`19` on monitor 1; this helper
+  queries which monitor has focus and rewrites `lwin+N` to the right one. It
+  talks to GlazeWM's WebSocket IPC (127.0.0.1:6123) directly over one
+  connection rather than shelling out to `glazewm-cli` twice, which is what
+  makes it fast enough to sit under a keybinding.
+- **`focus-sync.exe`** — a background daemon started from
+  `general.startup_commands`. Windows only lets a genuine input event change
+  the real foreground window, so hovering onto an *empty* monitor updates
+  GlazeWM's internal focus but not Win32's. Anything deciding where to place a
+  newly launched window then gets it wrong. This daemon watches GlazeWM's
+  `focus_changed` events and forces foreground onto an invisible helper window
+  on that monitor. The helper is excluded from tiling by the
+  `GlazeWMFocusSyncHelper` window rule.
+
+Editing either `.cs` is enough — the build script's hash changes, so the next
+`chezmoi apply` rebuilds. Note it stops a running `focus-sync.exe` first
+(otherwise the binary is locked); reload GlazeWM with `lwin+shift+r` afterwards
+to restart it.
+
+### On a single-monitor machine
+
+No profile or template needed — the config degrades on its own.
+
+GlazeWM's `move_bounded_workspaces_to_new_monitor` filters workspace configs by
+`bind_to_monitor == monitor.index()` *before* it checks `keep_alive`, so with
+only monitor 0 present the `11`-`19` entries are never activated. They sit in
+the config describing a monitor that doesn't exist. Zebar lists activated
+workspaces, so you see `1`-`9`.
+
+Nothing requests the high workspaces either: `workspace-nav.exe` resolves
+`focusedIndex == 0` to plain `n`, and its `next`/`prev` decade math stays within
+`1`-`9`. (Asking for `11` *by name* would fall back to the focused monitor and
+create it there — but no keybinding does.)
+
+Two things are merely inert rather than useful, and are one-line local edits if
+they bother you: `focus-sync.exe` in `general.startup_commands` (its entire job
+is cross-monitor window placement) and `focus_follows_cursor: true` (kept on for
+the empty-monitor hover case). Neither is worth templating `config.yaml` for —
+that would trip `add-configs.sh`'s template guard and cost you `chezmoi re-add`
+on a file that gets tuned often.

@@ -186,9 +186,16 @@ packages:
       network:
         - openvpn3
 
-  # Windows half -- fill in when that machine gets set up.
   windows:
     winget:
+      # Tiling WM + bar. The GlazeWM installer offers Zebar via a checkbox;
+      # they are listed separately here so the versions are tracked
+      # independently. config.yaml's window_rules already assume PowerToys.
+      desktop:
+        - glzr-io.glazewm
+        - glzr-io.zebar
+        - Microsoft.PowerToys
+
       core:
         - Git.Git
         - Neovim.Neovim
@@ -199,6 +206,11 @@ packages:
         - sharkdp.bat
         - ajeetdsouza.zoxide
         - dandavison.delta
+
+    # Fallback only, for anything winget doesn't carry. Leave empty and the
+    # package script never touches chocolatey at all; add a group here and it
+    # bootstraps choco on demand (needs an elevated `chezmoi apply`).
+    choco: {}
 
 # Systemd units enabled for the user / system on a fresh Arch box.
 services:
