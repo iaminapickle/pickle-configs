@@ -1,0 +1,53 @@
+{{/* Interactive on first `chezmoi init`; answers cached in ~/.config/chezmoi/chezmoi.toml */}}
+{{- $name    := promptStringOnce . "name"    "Git author name" -}}
+{{- $email   := promptStringOnce . "email"   "Git author email" -}}
+{{- $gaming  := promptBoolOnce   . "gaming"  "Install the gaming stack" -}}
+
+{{/* Second git identity, used only by repos under the work directory (see   */}}
+{{/* .chezmoidata/git.yaml). Leave workEmail blank on a machine with no work  */}}
+{{/* side -- the include block then disappears from the rendered .gitconfig.  */}}
+{{- $workName  := promptStringOnce . "workName"  "Work git author name (blank for none)" "" -}}
+{{- $workEmail := promptStringOnce . "workEmail" "Work git author email (blank for none)" "" -}}
+{{- $workDir   := promptStringOnce . "workDir"   "Work repo directory, relative to ~" "Code/work" -}}
+
+{{/* Public age recipient. Safe to commit -- it can only encrypt, never       */}}
+{{/* decrypt. Written by scripts/setup-age.sh; while it is UNSET, encryption  */}}
+{{/* stays off and `chezmoi add --encrypt` will refuse.                       */}}
+{{/* NOTE: .chezmoidata/ is loaded *after* this file, so the recipient has to */}}
+{{/* live here rather than alongside the other repo data.                     */}}
+{{- $recipient := "age1twwfehzeqw5967qf0vvpw8alnmmq0wnyhd4pr2lu7hek9aq6he4s7nvlyg" -}}
+
+encryption = {{ if ne $recipient "UNSET" }}"age"{{ else }}""{{ end }}
+
+{{/* `chezmoi init --source X` does NOT persist X, so pin it here. Rendered  */}}
+{{/* from wherever init was pointed, so a clone to the default location or   */}}
+{{/* to ~/Code/pickle-configs both work. .chezmoiroot then redirects the     */}}
+{{/* source state into home/.                                                */}}
+sourceDir   = {{ .chezmoi.workingTree | quote }}
+workingTree = {{ .chezmoi.workingTree | quote }}
+
+[data]
+    name    = {{ $name | quote }}
+    email   = {{ $email | quote }}
+    gaming  = {{ $gaming }}
+    workName  = {{ $workName  | quote }}
+    workEmail = {{ $workEmail | quote }}
+    workDir   = {{ $workDir   | quote }}
+
+{{ if ne $recipient "UNSET" -}}
+[age]
+    identity  = {{ (joinPath .chezmoi.homeDir ".config/chezmoi/key.txt") | quote }}
+    recipient = {{ $recipient | quote }}
+{{ end -}}
+
+[diff]
+    command = "delta"
+    args    = ["--paging", "never"]
+
+[merge]
+    command = "nvim"
+    args    = ["-d", "{{ "{{ .Destination }}" }}", "{{ "{{ .Source }}" }}", "{{ "{{ .Target }}" }}"]
+
+[git]
+    autoCommit = false
+    autoPush   = false

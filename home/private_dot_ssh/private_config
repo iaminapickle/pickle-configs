@@ -1,0 +1,4 @@
+Host *
+    IdentityFile ~/.ssh/work
+    IdentityFile ~/.ssh/personal
+    IdentitiesOnly yes

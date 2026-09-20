@@ -1,0 +1,20 @@
+[Added Associations]
+x-scheme-handler/mailto=userapp-Thunderbird-5E67U3.desktop;
+x-scheme-handler/mid=userapp-Thunderbird-5E67U3.desktop;
+message/rfc822=userapp-Thunderbird-5E67U3.desktop;
+x-scheme-handler/net.thunderbird=userapp-Thunderbird-OKQ7U3.desktop;
+
+[Default Applications]
+inode/directory=org.kde.dolphin.desktop;
+text/plain=org.gnome.TextEditor.desktop;
+x-scheme-handler/http=brave-browser.desktop
+x-scheme-handler/https=brave-browser.desktop
+text/html=brave-browser.desktop
+x-scheme-handler/about=brave-browser.desktop
+x-scheme-handler/unknown=brave-browser.desktop
+x-scheme-handler/claude-cli=claude-code-url-handler.desktop
+x-scheme-handler/mailto=userapp-Thunderbird-5E67U3.desktop
+x-scheme-handler/mid=userapp-Thunderbird-5E67U3.desktop
+message/rfc822=userapp-Thunderbird-5E67U3.desktop
+x-scheme-handler/net.thunderbird=userapp-Thunderbird-OKQ7U3.desktop
+x-scheme-handler/slack=slack.desktop

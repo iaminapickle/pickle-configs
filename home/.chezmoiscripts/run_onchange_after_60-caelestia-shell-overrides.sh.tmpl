@@ -1,0 +1,32 @@
+{{- /* Arch/CachyOS only: caelestia-shell ships its QML at /etc/xdg/quickshell/caelestia
+       with no config knob for a few things (the session-panel gif, click-vs-hover bar
+       popouts). Quickshell loads a config directory whole -- no partial per-file
+       overlay -- so we rebuild a full user copy at ~/.config/quickshell/caelestia from
+       the currently installed package and only then apply our small patch on top. This
+       reruns whenever the package version or the patch files change, so the fork stays
+       in sync with upstream instead of going stale. WSL is linux too but has no
+       desktop, so skip it there. */ -}}
+{{- if and (eq .chezmoi.os "linux") (not (contains "microsoft" (lower (default "" .chezmoi.kernel.osrelease)))) -}}
+#!/usr/bin/env bash
+# caelestia-shell: {{ output "sh" "-c" "pacman -Q caelestia-shell 2>/dev/null || true" | trim }}
+# overrides: {{ include "dot_config/caelestia/shell-overrides/modules/session/Content.qml" | sha256sum }} {{ include "dot_config/caelestia/shell-overrides/modules/drawers/Interactions.qml" | sha256sum }} {{ include "dot_config/caelestia/shell-overrides/modules/osd/Content.qml" | sha256sum }} {{ include "dot_config/caelestia/shell-overrides/modules/bar/components/OsIcon.qml" | sha256sum }}
+set -euo pipefail
+
+log() { printf '\033[1;35m::\033[0m %s\n' "$*"; }
+
+SRC=/etc/xdg/quickshell/caelestia
+DEST="$HOME/.config/quickshell/caelestia"
+OVERRIDES="$HOME/.config/caelestia/shell-overrides"
+
+if [ ! -d "$SRC" ] || [ ! -d "$OVERRIDES" ]; then
+    exit 0
+fi
+
+log "rebuilding caelestia-shell override at $DEST"
+rm -rf "$DEST"
+mkdir -p "$(dirname "$DEST")"
+cp -r "$SRC" "$DEST"
+cp -r "$OVERRIDES"/. "$DEST"/
+
+log "restart the caelestia shell (pkill -x qs && caelestia shell -d) to pick up changes"
+{{- end -}}

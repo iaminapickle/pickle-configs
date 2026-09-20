@@ -1,0 +1,37 @@
+{{- if eq .chezmoi.os "linux" -}}
+#!/usr/bin/env bash
+# One-shot machine setup that isn't a package or a dotfile.
+set -euo pipefail
+
+log() { printf '\033[1;35m::\033[0m %s\n' "$*"; }
+
+# zsh as the login shell
+if command -v zsh >/dev/null && [ "$SHELL" != "$(command -v zsh)" ]; then
+    log "setting zsh as login shell"
+    chsh -s "$(command -v zsh)" || log "chsh failed; run it yourself"
+fi
+
+# Groups that the desktop stack wants
+for group in input realtime video; do
+    if getent group "$group" >/dev/null && ! id -nG | grep -qw "$group"; then
+        log "adding $USER to $group"
+        sudo usermod -aG "$group" "$USER"
+    fi
+done
+
+# ~/configs holds the (encrypted, chezmoi-managed) OpenVPN profile referenced
+# by the `vpn` alias in .zshrc
+mkdir -p "$HOME/configs"
+
+# Work repos live here; ~/.gitconfig's includeIf keys off this path, so the
+# directory has to exist for the split to mean anything on a fresh box.
+mkdir -p "$HOME/{{ .workDir }}"
+
+# SSH key permissions -- chezmoi sets these, but be defensive about the dir
+if [ -d "$HOME/.ssh" ]; then
+    chmod 700 "$HOME/.ssh"
+    find "$HOME/.ssh" -maxdepth 1 -type f ! -name '*.pub' -exec chmod 600 {} +
+fi
+
+log "post-install done -- log out and back in for group changes to apply"
+{{- end -}}

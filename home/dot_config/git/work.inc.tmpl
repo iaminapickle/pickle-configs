@@ -1,0 +1,7 @@
+{{- /* Pulled in by ~/.gitconfig only for repos under ~/{{ .workDir }}/. */ -}}
+[user]
+	email = {{ .workEmail }}
+	name = {{ .workName }}
+[core]
+	; force the work key so GitHub doesn't authenticate as the personal account
+	sshCommand = ssh -i ~/.ssh/work -o IdentitiesOnly=yes

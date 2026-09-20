@@ -1,0 +1,166 @@
+# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
+# Initialization code that may require console input (password prompts, [y/n]
+# confirmations, etc.) must go above this block; everything else may go below.
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
+
+source /usr/share/cachyos-zsh-config/cachyos-config.zsh
+unsetopt correct_all correct
+
+# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
+[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+eval "$(direnv hook zsh)"
+
+alias vim="nvim"
+alias vimzrc="nvim ~/.zshrc"
+alias srczrc="source ~/.zshrc"
+alias vpn="openvpn3 session-start --config ~/configs/work.ovpn"
+alias vpncheck="openvpn3 sessions-list"
+alias reboot-to-windows="sudo efibootmgr --bootnext 0000 && sudo reboot"
+
+typeset -g POWERLEVEL9K_INSTANT_PROMPT=quiet
+
+alias gitb="git branch"
+alias gitdlb="git branch -d"
+alias gitad="git add ."
+alias gitap="git add -p"
+alias gita="git add"
+alias gitl="git log"
+alias gitc="git commit"
+alias gitcm="git commit -m"
+alias gitco="git checkout"
+alias gitcob="git checkout -b"
+alias gitcmf="git commit --fixup"
+alias gitst="git status"
+alias gitcp="git cherry-pick"
+alias gitp="git push"
+alias gits="git show"
+alias gitrs="git restore --staged"
+alias gitf="git fetch"
+alias gitd="git diff"
+alias gitri="git rebase -i"
+alias gitri2="git rebase -i HEAD~2"
+alias gitri3="git rebase -i HEAD~3"
+alias gitri4="git rebase -i HEAD~4"
+alias gitri5="git rebase -i HEAD~5"
+alias gitri10="git rebase -i HEAD~10"
+alias gitri15="git rebase -i HEAD~15"
+alias gitri20="git rebase -i HEAD~20"
+alias gitrh="git reset --soft HEAD~1 && git restore --staged ."
+alias gitbl="git blame -w -m --first-parent"
+alias gitlp="git log -p -w -m --first-parent --name-status"
+alias gitcs="git commit --signoff"
+alias gitlf="git log --follow -p -- "
+alias gitcbr="git rev-parse --abbrev-ref HEAD | tr -d '\n' | xclip -selection clipboard"
+
+# Print the default branch of a remote (default: origin).
+#
+# refs/remotes/<remote>/HEAD is written at clone time, so the common case costs
+# nothing. When it is missing -- a --single-branch or older clone -- ask the
+# remote once; set-head caches the answer in the ref so the next call is local
+# again. If the remote's default branch changes later the ref goes stale;
+# `git remote set-head origin -a` refreshes it.
+git-default-branch() {
+    local remote ref
+    remote=${1:-origin}
+
+    if ! git remote get-url "$remote" >/dev/null 2>&1; then
+        remote=$(git remote | head -1)
+    fi
+    [[ -n "$remote" ]] || return 1
+
+    ref=$(git symbolic-ref --quiet "refs/remotes/$remote/HEAD" 2>/dev/null)
+    if [[ -z "$ref" ]]; then
+        git remote set-head "$remote" --auto >/dev/null 2>&1
+        ref=$(git symbolic-ref --quiet "refs/remotes/$remote/HEAD" 2>/dev/null)
+    fi
+    [[ -n "$ref" ]] || return 1
+
+    print -r -- "${ref#refs/remotes/$remote/}"
+}
+
+gitcom() {
+    local branch
+    if ! branch=$(git-default-branch "$@"); then
+        echo "gitcom: could not determine the default branch" >&2
+        return 1
+    fi
+    git checkout "$branch"
+}
+
+git-prune-branches() {
+    local main_branch="${1:-$(git-default-branch)}"
+    if [[ -z "$main_branch" ]]; then
+        echo "git-prune-branches: could not determine the default branch" >&2
+        return 1
+    fi
+    git fetch --prune
+
+    local current_branch
+    current_branch=$(git branch --show-current)
+
+    for branch in $(git branch | sed 's/^\*//' | tr -d ' '); do
+        # Skip the main branch itself
+        [[ "$branch" == "$main_branch" ]] && continue
+
+        local category=""
+
+        if git rev-parse --abbrev-ref "$branch@{upstream}" &>/dev/null; then
+            # Has a live upstream — leave it alone entirely
+            continue
+        fi
+
+        # Check branch -vv output for "gone" marker
+        if git branch -vv | grep "^\*\? *$branch " | grep -q ': gone]'; then
+            category="Upstream Gone"
+        else
+            category="Local Only"
+        fi
+
+        echo "Branch '$branch' — $category"
+        read "confirm?Delete '$branch'? [y/N] "
+        if [[ "$confirm" =~ ^[Yy]$ ]]; then
+            if [[ "$branch" == "$current_branch" ]]; then
+                echo "Can't delete the branch you're currently on. Skipped."
+            else
+                git branch -D "$branch"
+            fi
+        else
+            echo "Skipped $branch"
+        fi
+    done
+}
+
+alias gitclh="git clh"
+alias gitclh2="git clh2"
+alias gitclh3="git clh3"
+alias gitlgo="git log --oneline --graph"
+alias t1="tree -L 1 -F"
+alias t2="tree -L 2 -F"
+
+DaySuffix() {
+  case `date +%e` in
+    1|21|31) echo "st";;
+    2|22)    echo "nd";;
+    3|23)    echo "rd";;
+    *)       echo "th";;
+  esac
+}
+start_day_name=$(date +%A)
+day_suffix=$(DaySuffix)
+start_day=$(date '+%d')
+start_month_year=$(date '+%B %Y')
+
+echo "                      /^--^\      /^--^\      /^--^\ "
+echo "                      \____/      \____/      \____/"
+echo "                     /      \    /      \    /      \ "
+echo "                    |        |  |        |  |        |"
+echo "                     \__  __/    \__  __/    \__  __/"
+echo "|^|^|^|^|^|^|^|^|^|^|^|^\ \^|^|^|^|/ /^|^|^|^|^|\ \^|^|^|^|^|^|^|^|^|^|^|^|"
+echo "| | | | | | | | | | | | |\ \| | | / /| | | | | | \ \| | | | | | | | | | | |"
+echo "#########################/ /######\ \############/ /#######################"
+echo "| | | | | | | | | | | | |\/ | | | |\/ | | | | | |\/ | | | | | | | | | | | |"
+echo "|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|"
+echo "          Welcome back $USER! Today is $start_day_name $start_day$day_suffix $start_month_year          "

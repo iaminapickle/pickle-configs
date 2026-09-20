@@ -1,0 +1,83 @@
+// Zed settings
+//
+// For information on how to configure Zed, see the Zed
+// documentation: https://zed.dev/docs/configuring-zed
+//
+// To see all of Zed's default settings without changing your
+// custom settings, run `zed: open default settings` from the
+// command palette (cmd-shift-p / ctrl-shift-p)
+{
+  "agent_servers": {
+    "claude-acp": {
+      "type": "registry"
+    }
+  },
+  "icon_theme": {
+    "mode": "dark",
+    "light": "Zed (Default)",
+    "dark": "Zed (Default)"
+  },
+  "cli_default_open_behavior": "existing_window",
+  "ui_font_size": 16,
+  "buffer_font_size": 16,
+  "theme": {
+    "mode": "dark",
+    "light": "One Light",
+    "dark": "One Dark"
+  },
+  "buffer_font_family": "CaskaydiaCove Nerd Font",
+  "multi_cursor_modifier": "cmd_or_ctrl",
+  "hard_tabs": true,
+  "relative_line_numbers": "enabled",
+  "show_wrap_guides": true,
+  "wrap_guides": [100],
+  "show_whitespaces": "all",
+  "minimap": {
+    "show": "never"
+  },
+  "gutter": {
+    "min_line_number_digits": 2,
+    "bookmarks": false,
+    "runnables": false,
+    "code_actions": false
+  },
+  "show_completions_on_input": false,
+  "show_completion_documentation": false,
+  "vim_mode": true,
+  "vim": {
+    "use_system_clipboard": "always"
+  },
+  "languages": {
+    "Nix": {
+      "language_servers": ["nixd", "!nil"]
+    },
+    "QML": {
+      "formatter": {
+        "external": {
+          "command": "sh",
+          "arguments": [
+            "-c",
+            "tmp=$(mktemp --suffix .qml); cat > $tmp; qmlformat $tmp"
+          ]
+        }
+      }
+    }
+  },
+  "lsp": {
+    "nixd": {
+      "settings": {
+        "nixpkgs": {
+          "expr": "import (builtins.getFlake (builtins.toString ./.)).inputs.nixpkgs {}"
+        },
+        "formatting": {
+          "command": ["alejandra"]
+        }
+      }
+    },
+    "qml": {
+      "binary": {
+        "arguments": ["-E"]
+      }
+    }
+  }
+}

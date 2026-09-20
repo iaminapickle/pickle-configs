@@ -1,0 +1,210 @@
+# Curated package set for a pickle box.
+#
+# Deliberately NOT a snapshot of `pacman -Qqe`. The CachyOS installer already
+# provides the kernel, firmware, filesystem tooling, printing stack, bootloader
+# and hardware detection; re-listing those here only creates noise. What is
+# listed below is the part of the machine that is *mine*.
+#
+# Grouping is for human readability only -- the bootstrap installs everything.
+# Trim a group rather than hunting through one flat list.
+
+packages:
+  arch:
+    # Installed from the official / CachyOS repos with pacman.
+    repo:
+      shell:
+        - zsh
+        - cachyos-zsh-config
+        - fish
+        - cachyos-fish-config
+        - starship
+        - direnv
+        - zoxide
+
+      cli:
+        - bat
+        - btop
+        - curl
+        - duf
+        - eza
+        - fastfetch
+        - glances
+        - jq
+        - less
+        - man-db
+        - man-pages
+        - nano
+        - pacman-contrib
+        - plocate
+        - pv
+        - reflector
+        - ripgrep
+        - rsync
+        - trash-cli
+        - tree
+        - unrar
+        - unzip
+        - wget
+        - which
+        # ~/.zshrc's reboot-to-windows alias shells out to this
+        - efibootmgr
+
+      dev:
+        - base-devel
+        - git
+        - git-delta
+        - lazygit
+        - meld
+        - neovim
+        - vim
+        - tree-sitter-cli
+        - python
+        - claude-code
+        - openssh
+        - paru
+
+      hyprland:
+        - hyprland
+        - hyprpicker
+        - uwsm
+        - xdg-desktop-portal-hyprland
+        - xdg-desktop-portal-gtk
+        - xdg-user-dirs
+        - cliphist
+        - wl-clipboard
+        - xclip
+        - ydotool
+        - polkit-gnome
+        - gnome-keyring
+        - noctalia-greeter
+        - papirus-icon-theme
+        - adw-gtk-theme
+        - frameworkintegration
+        - satty
+
+      terminal:
+        - wezterm
+        - foot
+        - kitty
+        - alacritty
+
+      fonts:
+        - ttf-meslo-nerd
+        - ttf-jetbrains-mono-nerd
+        - noto-fonts
+        - noto-fonts-cjk
+        - noto-fonts-emoji
+        - ttf-dejavu
+        - ttf-liberation
+        - ttf-opensans
+        - ttf-bitstream-vera
+        - cantarell-fonts
+        - awesome-terminal-fonts
+        - gsfonts
+
+      audio:
+        - pipewire
+        - pipewire-alsa
+        - pipewire-audio
+        - pipewire-jack
+        - pipewire-pulse
+        - wireplumber
+        - alsa-utils
+        - pavucontrol
+        - pwvucontrol
+        - easyeffects
+        - calf
+        - lsp-plugins-lv2
+
+      network:
+        - networkmanager
+        - networkmanager-openvpn
+        - proton-vpn-gtk-app
+        - syncthing
+        - ufw
+        - ufw-extras
+
+      apps:
+        - brave-bin
+        - thunar
+        - thunar-archive-plugin
+        - xarchiver
+        - gparted
+        - obsidian
+        - obs-studio
+        - qbittorrent
+        - telegram-desktop
+        - thunderbird
+        - discord
+        - vlc
+        - vlc-plugins-all
+        - libreoffice-still
+        - zed
+
+      hardware:
+        - solaar
+        - libratbag
+        - cpu-x
+        - amdgpu_top
+        - upower
+        - power-profiles-daemon
+
+      gaming:
+        - cachyos-gaming-meta
+        - cachyos-gaming-applications
+        - vulkan-radeon
+        - lib32-vulkan-radeon
+        - lib32-mesa
+        - mesa-utils
+
+    # Built from the AUR with paru.
+    aur:
+      caelestia:
+        - caelestia-shell
+        - caelestia-cli
+        - python-materialyoucolor
+        - qt6-m3shapes-git
+        - qtengine
+        - darkly-bin
+        - papirus-folders
+        - ttf-rubik-vf
+
+      apps:
+        - vscodium-bin
+        - vscodium-bin-marketplace
+        - slack-desktop
+        - equibop-bin
+        - spotify
+        - spicetify-cli
+        - spicetify-marketplace-bin
+        - localsend-bin
+        - ente-auth
+        - filen-desktop-bin
+        - obinskit
+        - astra-airlock
+
+      network:
+        - openvpn3
+
+  # Windows half -- fill in when that machine gets set up.
+  windows:
+    winget:
+      core:
+        - Git.Git
+        - Neovim.Neovim
+        - wez.wezterm
+        - Starship.Starship
+        - junegunn.fzf
+        - BurntSushi.ripgrep.MSVC
+        - sharkdp.bat
+        - ajeetdsouza.zoxide
+        - dandavison.delta
+
+# Systemd units enabled for the user / system on a fresh Arch box.
+services:
+  system:
+    - NetworkManager
+    - bluetooth
+    - ufw
+  user:
+    - syncthing

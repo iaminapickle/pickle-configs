@@ -1,0 +1,26 @@
+{{- if eq .chezmoi.os "linux" -}}
+#!/usr/bin/env bash
+# Enable the units this setup expects. Idempotent.
+set -euo pipefail
+
+log() { printf '\033[1;35m::\033[0m %s\n' "$*"; }
+
+SYSTEM_UNITS=({{ range .services.system }}{{ . }} {{ end }})
+USER_UNITS=({{ range .services.user }}{{ . }} {{ end }})
+
+for unit in "${SYSTEM_UNITS[@]}"; do
+    if systemctl list-unit-files "${unit}.service" >/dev/null 2>&1 \
+       && ! systemctl is-enabled --quiet "${unit}.service" 2>/dev/null; then
+        log "enabling ${unit}.service (system)"
+        sudo systemctl enable --now "${unit}.service"
+    fi
+done
+
+for unit in "${USER_UNITS[@]}"; do
+    if systemctl --user list-unit-files "${unit}.service" >/dev/null 2>&1 \
+       && ! systemctl --user is-enabled --quiet "${unit}.service" 2>/dev/null; then
+        log "enabling ${unit}.service (user)"
+        systemctl --user enable --now "${unit}.service"
+    fi
+done
+{{- end -}}

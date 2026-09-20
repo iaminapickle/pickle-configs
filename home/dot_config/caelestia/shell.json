@@ -1,0 +1,79 @@
+{
+    "bar": {
+        "clock": {
+            "showIcon": false
+        },
+        "workspaces": {
+            "shown": 10
+        },
+        "entries": [
+            {
+                "enabled": true,
+                "id": "logo"
+            },
+            {
+                "enabled": true,
+                "id": "workspaces"
+            },
+            {
+                "enabled": true,
+                "id": "spacer"
+            },
+            {
+                "enabled": false,
+                "id": "activeWindow"
+            },
+            {
+                "enabled": true,
+                "id": "spacer"
+            },
+            {
+                "enabled": true,
+                "id": "tray"
+            },
+            {
+                "enabled": true,
+                "id": "clock"
+            },
+            {
+                "enabled": true,
+                "id": "statusIcons"
+            },
+            {
+                "enabled": true,
+                "id": "power"
+            }
+        ]
+    },
+    "dashboard": {
+        "dragThreshold": 20,
+        "showOnHover": false
+    },
+    "lock": {
+        "useWallpaper": true,
+        "recolourLogo": true,
+        "hideNotifs": true
+    },
+    "general": {
+        "apps": {
+            "terminal": [
+                "wezterm",
+                "start",
+                "--cwd",
+                "."
+            ]
+        },
+        "idle": {
+            "lockBeforeSleep": true,
+            "timeouts": [
+                {
+                    "idleAction": [
+                        "systemctl",
+                        "suspend-then-hibernate"
+                    ],
+                    "timeout": 1800
+                }
+            ]
+        }
+    }
+}

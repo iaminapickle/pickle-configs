@@ -1,0 +1,7 @@
+{
+	"toggles": {
+		"communication": {
+			"discord": { "enable": true }
+		}
+	}
+}

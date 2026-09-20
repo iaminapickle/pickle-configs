@@ -1,0 +1,51 @@
+{{- if eq .chezmoi.os "linux" -}}
+#!/usr/bin/env bash
+# Package bootstrap. Re-runs automatically whenever the rendered package list
+# below changes, because chezmoi hashes the script contents.
+set -euo pipefail
+
+log() { printf '\033[1;35m::\033[0m %s\n' "$*"; }
+die() { printf '\033[1;31m!!\033[0m %s\n' "$*" >&2; exit 1; }
+
+command -v pacman >/dev/null || die "not an Arch/CachyOS system, refusing to run"
+
+# --- paru ------------------------------------------------------------------
+if ! command -v paru >/dev/null; then
+    log "bootstrapping paru"
+    sudo pacman -S --needed --noconfirm base-devel git
+    tmp=$(mktemp -d)
+    trap 'rm -rf "$tmp"' EXIT
+    git clone --depth 1 https://aur.archlinux.org/paru-bin.git "$tmp/paru-bin"
+    (cd "$tmp/paru-bin" && makepkg -si --noconfirm)
+fi
+
+# --- repo packages ---------------------------------------------------------
+REPO_PKGS=(
+{{- range $group, $pkgs := .packages.arch.repo }}
+{{- if or (ne $group "gaming") $.gaming }}
+    # {{ $group }}
+{{- range $pkgs }}
+    {{ . }}
+{{- end }}
+{{- end }}
+{{- end }}
+)
+
+# --- AUR packages ----------------------------------------------------------
+AUR_PKGS=(
+{{- range $group, $pkgs := .packages.arch.aur }}
+    # {{ $group }}
+{{- range $pkgs }}
+    {{ . }}
+{{- end }}
+{{- end }}
+)
+
+log "syncing repo packages (${#REPO_PKGS[@]})"
+sudo pacman -Syu --needed --noconfirm "${REPO_PKGS[@]}"
+
+log "syncing AUR packages (${#AUR_PKGS[@]})"
+paru -S --needed --noconfirm "${AUR_PKGS[@]}"
+
+log "packages done"
+{{- end -}}

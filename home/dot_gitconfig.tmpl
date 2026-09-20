@@ -1,0 +1,51 @@
+[core]
+	pager = delta
+	editor = nvim
+	; personal key by default; work repos override this via the includeIf below
+	sshCommand = ssh -i ~/.ssh/personal -o IdentitiesOnly=yes
+[user]
+	email = {{ .email }}
+	name = {{ .name }}
+[alias]
+	clh = "!git rev-parse HEAD | wl-copy"
+	clh2 = "!git rev-parse HEAD~1 | wl-copy"
+	clh3 = "!git rev-parse HEAD~2 | wl-copy"
+[interactive]
+	diffFilter = delta --color-only
+[delta]
+	navigate = true
+	dark = true
+	side-by-side = true
+	line-numbers = true
+	context = 3
+[merge]
+	conflictStyle = zdiff3
+[rebase]
+	autosquash = true
+	autoStash = true
+	updateRefs = true
+[pager]
+	branch = false
+	blame = delta
+[branch]
+	sort = -committerdate
+[tag]
+	sort = version:refname
+[diff]
+	algorithm = histogram
+[fetch]
+	prune = true
+	pruneTags = true
+	all = true
+[pull]
+	rebase = true
+[init]
+	defaultBranch = main
+
+{{ if .workEmail -}}
+; --- work identity ---------------------------------------------------------
+; Everything under ~/{{ .workDir }}/ commits as work and uses the work SSH
+; key. Anything anywhere else gets the personal identity above.
+[includeIf "gitdir:~/{{ .workDir }}/"]
+	path = ~/.config/git/work.inc
+{{ end -}}

@@ -1,0 +1,131 @@
+// Zed keymap
+//
+// For information on binding keys, see the Zed
+// documentation: https://zed.dev/docs/key-bindings
+//
+// To see the default key bindings run `zed: open default keymap`
+// from the command palette.
+[
+  {
+    "context": "Editor",
+    "bindings": {
+      "ctrl-shift-up": "editor::MoveLineUp",
+      "ctrl-shift-down": "editor::MoveLineDown",
+      "alt-down": ["editor::SelectNext", { "replace_newest": false }],
+      "alt-up": ["editor::SelectPrevious", { "replace_newest": false }]
+    }
+  },
+
+  // ─── Motions: normal + visual ────────────────────────────────────────────────
+  {
+    "context": "VimControl && !menu",
+    "bindings": {
+      "k": "vim::Left",
+      "l": "vim::Down",
+      ";": "vim::Up",
+      "'": "vim::Right"
+    }
+  },
+
+  // ─── Normal mode ─────────────────────────────────────────────────────────────
+  {
+    "context": "Editor && vim_mode == normal && !VimWaiting && !menu",
+    "bindings": {
+      "enter": ["workspace::SendKeystrokes", ":"],
+      "shift-enter": ["workspace::SendKeystrokes", ":"],
+      "ctrl-l": "editor::MoveLineDown",
+      "ctrl-;": "editor::MoveLineUp",
+      "p": ["vim::Paste", { "before": true }],
+      "shift-k": "vim::StartOfLine",
+      "\"": "vim::EndOfLine",
+      "shift-l": ["workspace::SendKeystrokes", "2 0 l"],
+      ":": ["workspace::SendKeystrokes", "1 0 ;"],
+
+      "d d": "editor::DeleteLine",
+      "shift-d": "editor::DeleteToEndOfLine",
+      "x": "editor::Delete",
+
+      "ctrl-shift-d": "vim::PushDelete",
+      "d w": ["workspace::SendKeystrokes", "\" _ ctrl-shift-d w"],
+      "d e": ["workspace::SendKeystrokes", "\" _ ctrl-shift-d e"],
+      "d b": ["workspace::SendKeystrokes", "\" _ ctrl-shift-d b"],
+      "d i w": ["workspace::SendKeystrokes", "\" _ ctrl-shift-d i w"],
+      "d a w": ["workspace::SendKeystrokes", "\" _ ctrl-shift-d a w"],
+      "d i b": ["workspace::SendKeystrokes", "\" _ ctrl-shift-d i b"],
+      "d a b": ["workspace::SendKeystrokes", "\" _ ctrl-shift-d a b"],
+
+      "ctrl-shift-c": "vim::PushChange",
+      "c c": "editor::DeleteLine",
+      "shift-c": "editor::DeleteToEndOfLine",
+      "c w": ["workspace::SendKeystrokes", "\" _ ctrl-shift-c w"],
+      "c e": ["workspace::SendKeystrokes", "\" _ ctrl-shift-c e"],
+      "c b": ["workspace::SendKeystrokes", "\" _ ctrl-shift-c b"],
+      "c i w": ["workspace::SendKeystrokes", "\" _ ctrl-shift-c i w"],
+      "c a w": ["workspace::SendKeystrokes", "\" _ ctrl-shift-c a w"]
+    }
+  },
+
+  // ─── Visual mode ─────────────────────────────────────────────────────────────
+  {
+    "context": "Editor && vim_mode == visual && !VimWaiting && !menu",
+    "bindings": {
+      "enter": ["workspace::SendKeystrokes", ":"],
+      "shift-enter": ["workspace::SendKeystrokes", ":"],
+      "ctrl-l": "editor::MoveLineDown",
+      "ctrl-;": "editor::MoveLineUp",
+      "p": ["vim::Paste", { "before": true }],
+      "shift-k": "vim::StartOfLine",
+      "\"": "vim::EndOfLine",
+      "shift-l": ["workspace::SendKeystrokes", "2 0 l"],
+      ":": ["workspace::SendKeystrokes", "1 0 ;"],
+
+      "d": "editor::Delete",
+      "x": "editor::Delete",
+      "c": "editor::Delete"
+    }
+  },
+
+  // ─── Pass-through: works in all modes including insert ───────────────────────
+  {
+    "context": "Editor && !menu",
+    "bindings": {
+      "ctrl-a": "editor::SelectAll",
+      "ctrl-c": "editor::Copy",
+      "ctrl-v": "editor::Paste",
+      "ctrl-/": "editor::ToggleComments",
+      "ctrl-f": "buffer_search::Deploy",
+      "ctrl-p": "file_finder::Toggle",
+      "ctrl-s": "workspace::Save"
+    }
+  },
+
+  // ─── Workspace-wide shortcuts ────────────────────────────────────────────────
+  {
+    "context": "Workspace",
+    "bindings": {
+      "ctrl-s": "workspace::Save",
+      "ctrl-z": "editor::Undo",
+      "ctrl-shift-z": "editor::Redo",
+      "ctrl-a": "editor::SelectAll",
+      "ctrl-w": "pane::CloseActiveItem",
+      "ctrl-shift-t": "pane::ReopenClosedItem",
+      "ctrl-`": "workspace::ToggleBottomDock",
+      "ctrl-shift-p": "command_palette::Toggle",
+      "ctrl-b": "workspace::ToggleLeftDock",
+
+      "ctrl-1": ["pane::ActivateItem", 0],
+      "ctrl-2": ["pane::ActivateItem", 1],
+      "ctrl-3": ["pane::ActivateItem", 2],
+      "ctrl-4": ["pane::ActivateItem", 3],
+      "ctrl-5": ["pane::ActivateItem", 4],
+      "ctrl-6": ["pane::ActivateItem", 5],
+      "ctrl-7": ["pane::ActivateItem", 6],
+      "ctrl-8": ["pane::ActivateItem", 7],
+      "ctrl-9": ["pane::ActivateItem", 8],
+
+      "ctrl-shift-1": "workspace::ActivateNextPane",
+      "ctrl-shift-2": "workspace::ActivatePreviousPane",
+      "ctrl-shift-3": "pane::CloseActiveItem"
+    }
+  }
+]

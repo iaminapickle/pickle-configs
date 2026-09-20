@@ -1,0 +1,17 @@
+#!/bin/sh
+# Claude Code rewrites "model" in-place whenever `/model` is used, so a plain
+# tracked file would show a dirty diff after every model switch. Preserve
+# whatever model is already on disk instead of overwriting it from source.
+set -eu
+
+current="$(cat)"
+model="$(printf '%s' "$current" | jq -r '.model // "opus[1m]"' 2>/dev/null)" || model="opus[1m]"
+
+jq -n --arg model "$model" '{
+  statusLine: {
+    type: "command",
+    command: "sh ~/.claude/statusline-command.sh"
+  },
+  theme: "dark",
+  model: $model
+}'

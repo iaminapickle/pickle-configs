@@ -1,0 +1,7 @@
+# Local-only overrides, never committed
+*.local
+.DS_Store
+
+# Age identity must never land in the repo
+key.txt
+*.age.key
