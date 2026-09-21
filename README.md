@@ -176,7 +176,7 @@ What it shares:
 
 | | |
 |---|---|
-| tracked | `.gitconfig`, `.config/git/work.inc`, `.ssh/*`, `.zshrc`, `.p10k.zsh`, `.config/nvim` |
+| tracked | `.gitconfig`, `.gitignore_global`, `.config/git/work.inc`, `.ssh/*`, `.zshrc`, `.p10k.zsh`, `.config/nvim` |
 | ignored | everything else |
 
 `.chezmoiignore` does this by ignoring `**` and then un-ignoring those two

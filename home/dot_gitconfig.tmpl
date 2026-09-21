@@ -12,6 +12,7 @@
 	editor = nvim
 	; personal key by default; work repos override this via the includeIf below
 	sshCommand = ssh -i ~/.ssh/personal -o IdentitiesOnly=yes
+	excludesfile = ~/.gitignore_global
 [user]
 	email = {{ .email }}
 	name = {{ .name }}
