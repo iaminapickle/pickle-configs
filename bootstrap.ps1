@@ -2,8 +2,8 @@
 #
 #   irm https://raw.githubusercontent.com/iaminapickle/pickle-configs/main/bootstrap.ps1 | iex
 #
-# STATUS: scaffold. The Windows half of this repo is not populated yet --
-# see docs/windows.md for what still needs doing.
+# STATUS: scaffold. Package install and a PowerShell profile aren't ported
+# yet; SSH keys, git identity, and GlazeWM + Zebar already work.
 
 $ErrorActionPreference = 'Stop'
 

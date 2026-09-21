@@ -1,256 +1,68 @@
 # pickle-configs
 
-Dotfiles **and** machine bootstrap for my CachyOS (and, later, Windows) setup,
-managed with [chezmoi](https://chezmoi.io).
+Dotfiles and machine bootstrap for CachyOS, Windows, and WSL, managed with
+[chezmoi](https://chezmoi.io).
 
-```
-bash <(curl -fsSL https://raw.githubusercontent.com/iaminapickle/pickle-configs/main/bootstrap.sh)
-```
+## CachyOS
 
-That one line takes a freshly-installed CachyOS box to a working Hyprland +
-caelestia + zsh + neovim desktop: installs ~145 packages (repo and AUR),
-enables the services, drops every config into place, and decrypts the SSH keys
-and VPN profile.
-
----
-
-## Why chezmoi
-
-| | chezmoi | stow | home-manager | ansible |
-|---|---|---|---|---|
-| Windows support | native static binary | symlinks need dev mode | WSL only | awkward locally |
-| Per-machine templating | built in | none | Nix expressions | built in |
-| Encrypted secrets in-repo | built in (age/gpg) | none | needs sops | vault |
-| Package bootstrap | `run_onchange_` scripts | none | declarative, Nix-only | its whole job |
-| Fights Arch? | no | no | yes | no |
-
-chezmoi is the only one that does all four things this repo needs. It also
-keeps a real source tree in git rather than a farm of symlinks, so `git diff`
-shows actual config changes.
-
----
-
-## Layout
-
-```
-.chezmoiroot                    -> "home"; keeps repo root readable
-bootstrap.sh                    fresh CachyOS entry point
-bootstrap.ps1                   fresh Windows entry point (scaffold)
-scripts/
-  setup-age.sh                  generate the age identity, record its recipient
-  add-configs.sh                import live configs into the source state
-docs/
-  windows.md                    what's left for the Windows half
-home/                           <- chezmoi source directory
-  .chezmoi.toml.tmpl            prompts on init: personal + work identity,
-                                gaming; also holds the public age recipient
-  .chezmoiignore                per-OS and per-answer exclusions
-  .chezmoidata/
-    packages.yaml               the curated package set + services
-  .chezmoiscripts/
-    run_onchange_before_10-packages.sh.tmpl
-    run_onchange_after_20-services.sh.tmpl
-    run_once_after_30-post-install.sh.tmpl
-  dot_zshrc, dot_gitconfig.tmpl, dot_config/..., private_dot_ssh/...
-```
-
-chezmoi's source naming: `dot_` is a leading `.`, `private_` is mode 0600,
-`executable_` is +x, `encrypted_` is age-encrypted, `.tmpl` is templated.
-
----
-
-## Finishing setup on this machine
-
-The non-secret configs are already imported. What's left is the encryption
-half, which needs a private key only you should hold:
+Copy the age key over first. Every machine should inherit the same identity:
 
 ```bash
-# 1. tools
-sudo pacman -S --needed chezmoi age
-
-# 2. generate the age identity and stamp its public recipient into
-#    home/.chezmoi.toml.tmpl
-./scripts/setup-age.sh
-
-# 3. point chezmoi at this repo (prompts for identities + gaming)
-chezmoi init --source ~/Code/pickle-configs
-
-# 4. re-run the importer -- this time the encrypted files go in too
-./scripts/add-configs.sh
-
-# 5. sanity check, then commit
-chezmoi status          # should be empty except the pending scripts
-git add -A && git commit -m "Import configs" && git push
-```
-
-**Back up `~/.config/chezmoi/key.txt` off this machine.** It is the only thing
-that can decrypt the SSH keys and the VPN profile. It is gitignored and must
-stay that way.
-
-> The first `chezmoi apply` on this machine will run the bootstrap scripts:
-> a full `pacman -Syu` of the package set, `systemctl enable`, `chsh -s zsh`
-> and a couple of `usermod -aG`. Run `chezmoi apply --dry-run -v` first if you
-> want to see it coming.
-
-## Day to day
-
-```bash
-chezmoi diff                # what would change on disk
-chezmoi apply               # push source -> home
-chezmoi re-add              # pull local edits -> source (all tracked files)
-chezmoi add ~/.config/foo   # start tracking something new
-chezmoi edit ~/.zshrc       # edit the source copy, not the live file
-chezmoi cd                  # drop into the source tree
-chezmoi update              # git pull + apply
-```
-
-After editing `packages.yaml`, the next `chezmoi apply` re-runs the package
-script automatically — chezmoi hashes the rendered script, so a changed list
-means a changed hash means a re-run.
-
-## Adding a machine
-
-```bash
-# 1. get the age identity onto the new box first
 mkdir -p ~/.config/chezmoi && cp /path/to/key.txt ~/.config/chezmoi/key.txt
 chmod 600 ~/.config/chezmoi/key.txt
+```
 
-# 2. then bootstrap
+Then:
+
+```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/iaminapickle/pickle-configs/main/bootstrap.sh)
 ```
 
-`chezmoi init` prompts once per machine for the personal git identity, whether
-to install the gaming stack, and the work git identity and directory (blank to
-skip); on Windows it also asks whether the machine has multiple monitors.
-Answers are cached in `~/.config/chezmoi/chezmoi.toml` and drive
-`.chezmoiignore`, the package script, `dot_gitconfig.tmpl`, and (the monitor
-answer) `dot_glzr/glazewm/config.yaml.tmpl` — see
-[docs/windows.md](docs/windows.md#on-a-single-monitor-machine).
+Installs packages, enables services, drops every config into
+place, and decrypts the SSH keys and VPN profile with the key.
 
-**Nothing identifying is committed.** Names, email addresses, the employer and
-the work directory all come from those prompts or from age-encrypted files;
-the repo itself contains no personal or workplace strings. Keep it that way
-when adding configs — template the value and prompt for it instead.
-
-To change an answer later, edit `[data]` in `~/.config/chezmoi/chezmoi.toml`
-directly, or delete the key and re-run `chezmoi init`.
-
----
-
-## Git identity
-
-Split by directory. Personal is the default everywhere; repos under the work
-directory get the work identity and the work SSH key, at any nesting depth:
-
-| location | identity | ssh key |
-|---|---|---|
-| `~/$workDir/**` | work | `~/.ssh/work_github` |
-| everywhere else | personal | `~/.ssh/personal` |
-
-Pinning the key matters as much as the email: GitHub authenticates you as
-whichever key it is offered first, so handing the personal key to a work repo
-fails authorization rather than falling through to the right one.
-
-Bitbucket is the one exception: work repos there use a separate key,
-`~/.ssh/work_bitbucket`, since it's a different account on a different host
-from the work GitHub key above. This is pinned by *host* rather than by directory --
-`Host bitbucket.org` in `private_dot_ssh/private_config` -- since directory
-alone can't distinguish "work repo on GitHub" from "work repo on Bitbucket".
-
-`workDir` is an init prompt, so the actual path lives in your local
-`~/.config/chezmoi/chezmoi.toml` and never reaches the repo. The directory is
-created by `run_once_after_30-post-install.sh` so the rule has something to
-match on a fresh box.
-
-Mechanism is `includeIf "gitdir:~/{{ workDir }}/"` in `dot_gitconfig.tmpl`
-pointing at `dot_config/git/work.inc.tmpl`. Check what a repo resolves to with:
-
-```bash
-git -C <repo> config --get user.email
-```
-
-Because the template carries that logic, `scripts/add-configs.sh` deliberately
-will **not** re-import `~/.gitconfig` once `home/dot_gitconfig.tmpl` exists —
-re-importing the flat live file would flatten the includeIf rule away. Edit it
-with `chezmoi edit ~/.gitconfig` instead.
-
-## WSL
-
-WSL is detected from the kernel string (`microsoft` in
-`.chezmoi.kernel.osrelease`), not from a prompt — a machine doesn't stop being
-WSL, so there's nothing to answer. It's a Linux box as far as `.chezmoi.os` is
-concerned, which is why the detection has to be finer-grained than the OS.
-
-What it shares:
-
-| | |
-|---|---|
-| tracked | `.gitconfig`, `.gitignore_global`, `.config/git/work.inc`, `.ssh/*`, `.zshrc`, `.p10k.zsh`, `.config/nvim` |
-| ignored | everything else |
-
-`.chezmoiignore` does this by ignoring `**` and then un-ignoring those two
-paths, so anything added to the repo later is excluded from WSL by default
-rather than included by accident.
-
-The scope is narrow because there's no desktop here at all — no Hyprland, no
-terminals, no theming. What *is* shared is shared through **runtime branching
-inside the file**, not chezmoi templates:
-
-- `dot_zshrc` picks its plugin framework by testing for
-  `/usr/share/cachyos-zsh-config/cachyos-config.zsh` — CachyOS's curated config
-  when present, oh-my-zsh + znap otherwise. Both land on powerlevel10k, so
-  everything after that block is identical.
-- `dot_config/wezterm/wezterm.lua` branches on `wezterm.target_triple`.
-
-Templates would have worked too, but a `.tmpl` suffix makes
-`scripts/add-configs.sh` refuse to re-import the file, and these are exactly
-the files that get tuned in place. Runtime branching keeps `chezmoi re-add`
-working on them, and keeps each file readable as the thing it is.
-
-Anything genuinely specific to one box goes in **`~/.zshrc.local`**, which
-`.zshrc` sources last and which chezmoi never tracks. That's where per-machine
-env vars belong — it's also what keeps workplace strings out of the repo.
-
-The three Arch bootstrap scripts carry the inverse guard — they render to
-nothing on WSL. Without it, `10-packages` would hit its `command -v pacman ||
-die` check on Ubuntu and fail the whole apply.
-
-The `clh` git aliases pipe to a clipboard command that differs per platform, so
-`dot_gitconfig.tmpl` picks it: `wl-copy` on the CachyOS box,
-`/mnt/c/Windows/System32/clip.exe` under WSL (by full path, since PATH interop
-can be switched off), `clip` on native Windows.
-
-Windows is narrowed the same way, to `.gitconfig`, `.config/git`, `.ssh` and
-`.glzr` — see [docs/windows.md](docs/windows.md). Only CachyOS gets the full
-set; the other two machines opt in to what they need. Both are ignore-`**`-then
--un-ignore, so anything added to the repo later is excluded from them by
-default rather than included by accident.
-
-The same three keys therefore land on all three machines. On Windows the mode
-bits `private_` sets are meaningless, so `run_after_50-ssh-acl.ps1.tmpl`
-re-asserts the ACLs on every apply — without it Windows OpenSSH ignores the
-keys as "too open".
-
-## What is deliberately not tracked
-
-`caelestia scheme` rewrites a pile of files every time the colourscheme
-changes. Tracking those means a dirty worktree after every theme switch, so
-`.chezmoiignore` excludes the ones that are *purely* generated:
-
-`gtk-3.0`, `gtk-4.0`, `qt5ct`, `qt6ct`, `qtengine`, `kdeglobals`,
-`btop/themes`, `kitty/themes`, `alacritty/themes`, `nvtop.colors`, `htoprc`,
-`hypr/scheme/current.lua`.
-
-Three files are *mixed* — hand-written settings plus an appended generated
-colour block — and are tracked anyway: `fuzzel/fuzzel.ini`, `cava/config`,
-`btop/btop.conf`. Expect `chezmoi diff` to show colour churn on those after a
-theme change; `chezmoi re-add` accepts it, or just ignore it.
-
-Also untracked: application state (Discord, Slack, Steam, Obsidian, browsers),
-`~/.local/share/nvim` (lazy.nvim manages its own plugins), and anything the
-CachyOS installer already sets up (kernel, firmware, bootloader, printing).
+**Missing the key?** The script warns you and asks to continue anyway --
+say yes and it applies everything except the encrypted files. Copy the key
+over later and re-run `chezmoi apply` to pick up the rest.
 
 ## Windows
 
-Not populated yet — `bootstrap.ps1` and the `packages.windows.winget` list are
-scaffolds. See [docs/windows.md](docs/windows.md).
+```powershell
+irm https://raw.githubusercontent.com/iaminapickle/pickle-configs/main/bootstrap.ps1 | iex
+```
+
+### WSL
+
+```bash
+chezmoi init --apply /path/to/pickle-configs
+```
+
+---
+
+## Things to know
+
+- **Git identity is split by directory.** The personal GitHub identity is used everywhere except in specified work folders.
+
+- **Windows SSH keys need their ACLs re-asserted on every apply.** `private_`'s
+  mode 0600 means nothing on Windows, and a file written under the user
+  profile inherits the profile's ACL -- so a fresh or re-created key gets
+  rejected by OpenSSH as "too open". `run_after_50-ssh-acl.ps1.tmpl` fixes the
+  ACL by SID (account names are localized) every time, since a changed file
+  picks the inherited ACL back up.
+
+- **GlazeWM's keybinding helpers exist to work around two Win32 quirks.**
+  `workspace-nav.exe` resolves `lwin+N` to the right per-monitor workspace by
+  talking to GlazeWM's WebSocket IPC directly (fast enough to sit under a
+  keypress); `focus-sync.exe` forces foreground onto the monitor GlazeWM
+  thinks is focused, because hovering onto an empty monitor updates GlazeWM's
+  internal state but not Win32's real foreground window. Both are dropped on a single-monitor machine via the `multiMonitor` init
+  prompt, since the per-monitor routing they exist for is a no-op with one monitor.
+
+- **Day to day:**
+  ```bash
+  chezmoi diff             # what would change on disk
+  chezmoi apply            # source -> home
+  chezmoi re-add           # local edits -> source
+  chezmoi edit ~/.zshrc    # edit the source copy, not the live file
+  chezmoi update           # git pull + apply
+  ```
