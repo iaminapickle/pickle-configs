@@ -344,6 +344,10 @@ fi
 # like ^V
 bindkey -r "^V"
 
+# Silence the terminal bell zsh triggers on things like backspacing past the
+# start of the line or Esc with nothing left to do.
+unsetopt BEEP
+
 # ---------------------------------------------------------------------------
 # Greeting
 # ---------------------------------------------------------------------------
