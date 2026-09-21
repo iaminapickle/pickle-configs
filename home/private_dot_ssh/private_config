@@ -1,4 +1,16 @@
+Host bitbucket.org
+    IdentityFile ~/.ssh/work_bitbucket
+    IdentitiesOnly yes
+
+Host 10.42.0.*
+    StrictHostKeyChecking no
+    UserKnownHostsFile /dev/null
+
+Host 192.168.*
+    StrictHostKeyChecking no
+    UserKnownHostsFile /dev/null
+
 Host *
-    IdentityFile ~/.ssh/work
+    IdentityFile ~/.ssh/work_github
     IdentityFile ~/.ssh/personal
     IdentitiesOnly yes

@@ -76,7 +76,7 @@ Windows OpenSSH runs its own permission check and refuses a private key other
 principals can read:
 
 ```
-Permissions for 'C:\Users\...\.ssh\work' are too open.
+Permissions for 'C:\Users\...\.ssh\work_github' are too open.
 This private key will be ignored.
 ```
 
@@ -84,8 +84,9 @@ chezmoi's `private_` prefix sets Unix mode 0600, which is meaningless on
 Windows, and a file written under the user profile inherits the profile's ACL.
 `run_after_50-ssh-acl.ps1.tmpl` breaks inheritance and grants only the current
 user, addressing them by **SID** rather than name (account and group names are
-localized). It covers `.ssh/personal`, `.ssh/work` and the age identity at
-`.config/chezmoi/key.txt`.
+localized). It covers `.ssh/personal`, `.ssh/work_github`,
+`.ssh/work_bitbucket` (see "Git identity" in the main README) and the age
+identity at `.config/chezmoi/key.txt`.
 
 It's `run_after_` rather than `run_onchange_` on purpose: chezmoi re-creates a
 file when its content changes, and a re-created file picks the inherited ACL

@@ -144,12 +144,18 @@ directory get the work identity and the work SSH key, at any nesting depth:
 
 | location | identity | ssh key |
 |---|---|---|
-| `~/$workDir/**` | work | `~/.ssh/work` |
+| `~/$workDir/**` | work | `~/.ssh/work_github` |
 | everywhere else | personal | `~/.ssh/personal` |
 
 Pinning the key matters as much as the email: GitHub authenticates you as
 whichever key it is offered first, so handing the personal key to a work repo
 fails authorization rather than falling through to the right one.
+
+Bitbucket is the one exception: work repos there use a separate key,
+`~/.ssh/work_bitbucket`, since it's a different account on a different host
+from the work GitHub key above. This is pinned by *host* rather than by directory --
+`Host bitbucket.org` in `private_dot_ssh/private_config` -- since directory
+alone can't distinguish "work repo on GitHub" from "work repo on Bitbucket".
 
 `workDir` is an init prompt, so the actual path lives in your local
 `~/.config/chezmoi/chezmoi.toml` and never reaches the repo. The directory is

@@ -103,8 +103,8 @@ add plain \
     .claude/statusline-command.sh
 
 # --- secrets (age-encrypted before they touch git) -------------------------
-add plain  .ssh/config .ssh/work.pub .ssh/personal.pub
-add secret .ssh/work .ssh/personal configs/work.ovpn
+add plain  .ssh/config .ssh/work_github.pub .ssh/personal.pub
+add secret .ssh/work_github .ssh/work_bitbucket .ssh/personal configs/work.ovpn
 
 # --- turn the hardcoded identity in .gitconfig into template vars ----------
 GITCFG="$REPO_ROOT/home/dot_gitconfig.tmpl"

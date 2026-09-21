@@ -5,7 +5,7 @@
 # Windows. Windows OpenSSH does its own permission check and flatly refuses a
 # private key that other principals can read:
 #
-#   Permissions for 'C:\Users\...\.ssh\work' are too open.
+#   Permissions for 'C:\Users\...\.ssh\work_github' are too open.
 #   This private key will be ignored.
 #
 # Files written under the user profile inherit the profile's ACL, which is not
@@ -26,7 +26,8 @@ $sid = ([Security.Principal.WindowsIdentity]::GetCurrent()).User.Value
 
 $targets = @(
     (Join-Path $env:USERPROFILE '.ssh\personal'),
-    (Join-Path $env:USERPROFILE '.ssh\work'),
+    (Join-Path $env:USERPROFILE '.ssh\work_github'),
+    (Join-Path $env:USERPROFILE '.ssh\work_bitbucket'),
     (Join-Path $env:USERPROFILE '.config\chezmoi\key.txt')
 )
 
