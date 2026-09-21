@@ -1,6 +1,6 @@
 {{/* Interactive on first `chezmoi init`; answers cached in ~/.config/chezmoi/chezmoi.toml */}}
-{{- $name    := promptStringOnce . "name"    "Git author name" -}}
-{{- $email   := promptStringOnce . "email"   "Git author email" -}}
+{{- $name    := promptStringOnce . "name"    "Git author name (personal)" -}}
+{{- $email   := promptStringOnce . "email"   "Git author email (personal)" -}}
 {{- $gaming  := promptBoolOnce   . "gaming"  "Install the gaming stack" -}}
 
 {{/* GlazeWM only (Windows). Single monitor skips focus-sync.exe entirely   */}}
