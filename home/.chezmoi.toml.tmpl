@@ -3,6 +3,17 @@
 {{- $email   := promptStringOnce . "email"   "Git author email" -}}
 {{- $gaming  := promptBoolOnce   . "gaming"  "Install the gaming stack" -}}
 
+{{/* GlazeWM only (Windows). Single monitor skips focus-sync.exe entirely   */}}
+{{/* (it exists solely to fix Win32 foreground when the cursor crosses      */}}
+{{/* between monitors) and drops workspace-nav.exe's per-monitor 1-9/11-19  */}}
+{{/* decade routing for most bindings -- with one monitor that routing is a */}}
+{{/* no-op, so those bindings call GlazeWM's native commands directly       */}}
+{{/* instead of paying for a process spawn on every keypress.               */}}
+{{- $multiMonitor := false -}}
+{{- if eq .chezmoi.os "windows" -}}
+{{-   $multiMonitor = promptBoolOnce . "multiMonitor" "Multiple monitors on this machine" -}}
+{{- end -}}
+
 {{/* Second git identity, used only by repos under the work directory (see   */}}
 {{/* .chezmoidata/git.yaml). Leave workEmail blank on a machine with no work  */}}
 {{/* side -- the include block then disappears from the rendered .gitconfig.  */}}
@@ -30,6 +41,7 @@ workingTree = {{ .chezmoi.workingTree | quote }}
     name    = {{ $name | quote }}
     email   = {{ $email | quote }}
     gaming  = {{ $gaming }}
+    multiMonitor = {{ $multiMonitor }}
     workName  = {{ $workName  | quote }}
     workEmail = {{ $workEmail | quote }}
     workDir   = {{ $workDir   | quote }}

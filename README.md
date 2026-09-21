@@ -121,8 +121,11 @@ bash <(curl -fsSL https://raw.githubusercontent.com/iaminapickle/pickle-configs/
 
 `chezmoi init` prompts once per machine for the personal git identity, whether
 to install the gaming stack, and the work git identity and directory (blank to
-skip). Answers are cached in `~/.config/chezmoi/chezmoi.toml` and drive
-`.chezmoiignore`, the package script and `dot_gitconfig.tmpl`.
+skip); on Windows it also asks whether the machine has multiple monitors.
+Answers are cached in `~/.config/chezmoi/chezmoi.toml` and drive
+`.chezmoiignore`, the package script, `dot_gitconfig.tmpl`, and (the monitor
+answer) `dot_glzr/glazewm/config.yaml.tmpl` — see
+[docs/windows.md](docs/windows.md#on-a-single-monitor-machine).
 
 **Nothing identifying is committed.** Names, email addresses, the employer and
 the work directory all come from those prompts or from age-encrypted files;

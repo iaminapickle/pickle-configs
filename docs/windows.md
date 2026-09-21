@@ -97,6 +97,8 @@ idempotent, so this is cheap.
 `dot_glzr/glazewm/scripts/` holds two C# helpers that the keybindings depend
 on. Only the `.cs` is tracked; `.chezmoiignore` excludes the `.exe`, which
 `run_onchange_after_40-glazewm-scripts.ps1.tmpl` builds on apply.
+`focus-sync.cs` is additionally excluded outright on a single-monitor machine
+-- see below.
 
 Both target .NET Framework 4.x, so the compiler (`csc.exe`) is already on any
 Windows box — there is no SDK to install. They are built `-target:winexe` on
@@ -126,22 +128,37 @@ to restart it.
 
 ### On a single-monitor machine
 
-No profile or template needed — the config degrades on its own.
+`config.yaml` is templated (`config.yaml.tmpl`) and branches on `multiMonitor`
+-- a Windows-only `chezmoi init` prompt (`.chezmoi.toml.tmpl`) cached in
+`chezmoi.toml`. This used to be handled by letting the multi-monitor config
+sit there inert (GlazeWM never activates the `11`-`19` workspaces without a
+second monitor, so they were harmless) — but "harmless" isn't the same as
+"free": every `lwin+N` press was shelling out to `workspace-nav.exe` to
+resolve a monitor index that's always `0`, i.e. paying for a full process
+spawn to compute the identity function. With `multiMonitor: false`:
 
-GlazeWM's `move_bounded_workspaces_to_new_monitor` filters workspace configs by
-`bind_to_monitor == monitor.index()` *before* it checks `keep_alive`, so with
-only monitor 0 present the `11`-`19` entries are never activated. They sit in
-the config describing a monitor that doesn't exist. Zebar lists activated
-workspaces, so you see `1`-`9`.
+- `workspaces` only declares `1`-`9`; the `11`-`19` block is dropped rather
+  than left inert.
+- `lwin+N`, `lwin+ctrl+N`, and `lwin+d`/`lwin+a` bind directly to GlazeWM's
+  native `focus --workspace`, `move --workspace`, and
+  `focus --next/prev-workspace` commands instead of `shell-exec`-ing
+  `workspace-nav.exe` — no process spawn, no IPC round trip.
+- `focus-sync.cs` is excluded by `.chezmoiignore` outright (not just left
+  unbuilt): its entire job is fixing Win32 foreground when the *cursor*
+  crosses between monitors, which can't happen with one. Its
+  `general.startup_commands`/`shutdown_commands` entries and the
+  `GlazeWMFocusSyncHelper` window rule drop with it.
+- `lwin+ctrl+a`/`lwin+ctrl+d` (move the focused window to the prev/next
+  workspace, wrapping, and follow it) keep using `workspace-nav.exe` even on
+  one monitor — GlazeWM has no documented native "move to next/prev
+  workspace" command, only `move --workspace <exact-name>`, and resolving
+  "current + 1, wrapping" needs to query state dynamically. `workspace-nav.cs`
+  therefore stays tracked and built regardless of `multiMonitor`; only
+  `focus-sync.cs` is conditional.
 
-Nothing requests the high workspaces either: `workspace-nav.exe` resolves
-`focusedIndex == 0` to plain `n`, and its `next`/`prev` decade math stays within
-`1`-`9`. (Asking for `11` *by name* would fall back to the focused monitor and
-create it there — but no keybinding does.)
+`focus_follows_cursor: true` stays on either way — it's the general
+hover-to-focus behavior, not specific to the empty-monitor case.
 
-Two things are merely inert rather than useful, and are one-line local edits if
-they bother you: `focus-sync.exe` in `general.startup_commands` (its entire job
-is cross-monitor window placement) and `focus_follows_cursor: true` (kept on for
-the empty-monitor hover case). Neither is worth templating `config.yaml` for —
-that would trip `add-configs.sh`'s template guard and cost you `chezmoi re-add`
-on a file that gets tuned often.
+Templating `config.yaml` does trip `add-configs.sh`'s template guard, same as
+`dot_gitconfig.tmpl` already does — from here on, re-tune the live config with
+`chezmoi edit ~/.glzr/glazewm/config.yaml`, not `chezmoi re-add`.

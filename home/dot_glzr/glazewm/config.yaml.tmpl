@@ -2,22 +2,32 @@ general:
   # Commands to run when the WM has started. This is useful for running a
   # script or launching another application.
   # Example: The below command launches Zebar.
+{{- if .multiMonitor }}
   # focus-sync.exe forces real OS foreground onto an empty monitor's desktop
   # when GlazeWM focuses it, so launchers/new windows land on the right
   # monitor even when you only hovered there (see scripts/focus-sync.cs).
   startup_commands: ['shell-exec zebar', 'shell-exec %USERPROFILE%\.glzr\glazewm\scripts\focus-sync.exe']
+{{- else }}
+  startup_commands: ['shell-exec zebar']
+{{- end }}
 
   # Commands to run just before the WM is shutdown.
   # Example: The below command kills Zebar.
+{{- if .multiMonitor }}
   shutdown_commands: ['shell-exec taskkill /IM zebar.exe /F', 'shell-exec taskkill /IM focus-sync.exe /F']
+{{- else }}
+  shutdown_commands: ['shell-exec taskkill /IM zebar.exe /F']
+{{- end }}
 
   # Commands to run after the WM config is reloaded.
   config_reload_commands: []
 
-  # Whether to automatically focus windows underneath the cursor. Also makes
-  # an empty monitor gain WM focus when the cursor moves over its desktop
-  # (with no window to focus there), which the per-monitor 1-9 workspace
-  # keybindings rely on.
+  # Whether to automatically focus windows underneath the cursor.
+{{- if .multiMonitor }}
+  # Also makes an empty monitor gain WM focus when the cursor moves over its
+  # desktop (with no window to focus there), which the per-monitor 1-9
+  # workspace keybindings rely on.
+{{- end }}
   focus_follows_cursor: true
 
   # Whether to switch back and forth between the previously focused
@@ -127,9 +137,16 @@ window_behavior:
       shown_on_top: false
 
 workspaces:
+{{- if .multiMonitor }}
   # Monitor 0 (leftmost) gets workspaces '1'-'9'; monitor 1 gets '11'-'19'.
   # The lwin+N keybindings below pick the right one via a helper script
   # (see scripts/workspace-nav.exe) based on which monitor is focused.
+{{- else }}
+  # Single monitor: just '1'-'9'. The lwin+N keybindings below call GlazeWM's
+  # native focus/move commands directly instead of routing through
+  # scripts/workspace-nav.exe -- there's no second monitor's decade to route
+  # between, so the script would just be spawning a process to do nothing.
+{{- end }}
   - name: '1'
     bind_to_monitor: 0
     keep_alive: true
@@ -157,6 +174,7 @@ workspaces:
   - name: '9'
     bind_to_monitor: 0
     keep_alive: true
+{{- if .multiMonitor }}
   - name: '11'
     bind_to_monitor: 1
     keep_alive: true
@@ -184,16 +202,19 @@ workspaces:
   - name: '19'
     bind_to_monitor: 1
     keep_alive: true
+{{- end }}
 
 window_rules:
   - commands: ['ignore']
     match:
       # Ignores any Zebar windows.
       - window_process: { equals: 'zebar' }
+{{- if .multiMonitor }}
 
       # Ignores the invisible helper window used by focus-sync.exe to force
       # real OS foreground onto empty monitors (see general.startup_commands).
       - window_title: { equals: 'GlazeWMFocusSyncHelper' }
+{{- end }}
 
       # Ignores picture-in-picture windows for browsers.
       - window_title: { regex: '[Pp]icture.in.[Pp]icture' }
@@ -314,6 +335,7 @@ keybindings:
   - commands: ['shell-exec cmd']
     bindings: ['lwin+enter', 'rwin+enter']
 
+{{- if .multiMonitor }}
   # Cycle to the next/previous workspace within the current monitor's own
   # 1-9/11-19 set, wrapping at each end, so each monitor is fully isolated
   # (see scripts/workspace-nav.exe).
@@ -321,11 +343,19 @@ keybindings:
     bindings: ['lwin+d', 'rwin+d']
   - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\workspace-nav.exe prev']
     bindings: ['lwin+a', 'rwin+a']
+{{- else }}
+  # Cycle to the next/previous workspace, wrapping at each end.
+  - commands: ['focus --next-workspace']
+    bindings: ['lwin+d', 'rwin+d']
+  - commands: ['focus --prev-workspace']
+    bindings: ['lwin+a', 'rwin+a']
+{{- end }}
 
   # Focus the workspace that last had focus.
   - commands: ['focus --recent-workspace']
     bindings: ['lwin+s', 'rwin+s']
 
+{{- if .multiMonitor }}
   # Change focus to a workspace defined in `workspaces` config. Routed through
   # a helper script so each monitor has its own independent 1-9 set (see the
   # `workspaces` section above and scripts/workspace-nav.exe).
@@ -347,6 +377,28 @@ keybindings:
     bindings: ['lwin+8', 'rwin+8']
   - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\workspace-nav.exe 9']
     bindings: ['lwin+9', 'rwin+9']
+{{- else }}
+  # Change focus to a workspace defined in `workspaces` config, directly via
+  # GlazeWM's native command -- no second monitor to route between.
+  - commands: ['focus --workspace 1']
+    bindings: ['lwin+1', 'rwin+1']
+  - commands: ['focus --workspace 2']
+    bindings: ['lwin+2', 'rwin+2']
+  - commands: ['focus --workspace 3']
+    bindings: ['lwin+3', 'rwin+3']
+  - commands: ['focus --workspace 4']
+    bindings: ['lwin+4', 'rwin+4']
+  - commands: ['focus --workspace 5']
+    bindings: ['lwin+5', 'rwin+5']
+  - commands: ['focus --workspace 6']
+    bindings: ['lwin+6', 'rwin+6']
+  - commands: ['focus --workspace 7']
+    bindings: ['lwin+7', 'rwin+7']
+  - commands: ['focus --workspace 8']
+    bindings: ['lwin+8', 'rwin+8']
+  - commands: ['focus --workspace 9']
+    bindings: ['lwin+9', 'rwin+9']
+{{- end }}
 
   # Move the focused window's parent workspace to a monitor in a given
   # direction.
@@ -359,6 +411,7 @@ keybindings:
   - commands: ['move-workspace --direction down']
     bindings: ['lwin+shift+s', 'rwin+shift+s']
 
+{{- if .multiMonitor }}
   # Move focused window to a workspace defined in `workspaces` config, using
   # the same per-monitor 1-9 resolution as the plain lwin+N bindings above.
   - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\workspace-nav.exe 1 -Move']
@@ -379,9 +432,36 @@ keybindings:
     bindings: ['lwin+ctrl+8', 'rwin+ctrl+8']
   - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\workspace-nav.exe 9 -Move']
     bindings: ['lwin+ctrl+9', 'rwin+ctrl+9']
+{{- else }}
+  # Move focused window to a workspace defined in `workspaces` config,
+  # directly via GlazeWM's native commands (same two IPC calls
+  # workspace-nav.exe would otherwise make on your behalf).
+  - commands: ['move --workspace 1', 'focus --workspace 1']
+    bindings: ['lwin+ctrl+1', 'rwin+ctrl+1']
+  - commands: ['move --workspace 2', 'focus --workspace 2']
+    bindings: ['lwin+ctrl+2', 'rwin+ctrl+2']
+  - commands: ['move --workspace 3', 'focus --workspace 3']
+    bindings: ['lwin+ctrl+3', 'rwin+ctrl+3']
+  - commands: ['move --workspace 4', 'focus --workspace 4']
+    bindings: ['lwin+ctrl+4', 'rwin+ctrl+4']
+  - commands: ['move --workspace 5', 'focus --workspace 5']
+    bindings: ['lwin+ctrl+5', 'rwin+ctrl+5']
+  - commands: ['move --workspace 6', 'focus --workspace 6']
+    bindings: ['lwin+ctrl+6', 'rwin+ctrl+6']
+  - commands: ['move --workspace 7', 'focus --workspace 7']
+    bindings: ['lwin+ctrl+7', 'rwin+ctrl+7']
+  - commands: ['move --workspace 8', 'focus --workspace 8']
+    bindings: ['lwin+ctrl+8', 'rwin+ctrl+8']
+  - commands: ['move --workspace 9', 'focus --workspace 9']
+    bindings: ['lwin+ctrl+9', 'rwin+ctrl+9']
+{{- end }}
 
   # Move focused window to the prev/next workspace within the current
   # monitor's own set (wrapping, same as lwin+a/d above) and follow it.
+  # Kept on workspace-nav.exe even for a single monitor: GlazeWM has no
+  # documented native "move to next/prev workspace" command, only
+  # `move --workspace <exact-name>`, and this needs to resolve "current + 1
+  # (wrapping)" dynamically.
   - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\workspace-nav.exe prev -Move']
     bindings: ['lwin+ctrl+a', 'rwin+ctrl+a']
   - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\workspace-nav.exe next -Move']
