@@ -35,12 +35,15 @@
 .glzr/zebar/settings.json.bak-*
 
 # ---------------------------------------------------------------------------
-# Windows: same narrow approach as WSL. The Windows half of this repo is not
-# finished (see docs/windows.md) and several configs there are hand-adapted
-# already -- wezterm.lua launches WSL rather than zsh, and nvim/zed would land
-# at ~/.config paths that Windows apps don't read. So track only what is
-# actually ready: the git identity, the SSH keys, and the GlazeWM/Zebar setup.
-# Un-ignore more as docs/windows.md items get done.
+# Windows: same narrow approach as WSL. Several configs here are hand-adapted
+# already -- wezterm.lua launches WSL rather than zsh -- so track only what is
+# actually ready: the git identity, the SSH keys, GlazeWM/Zebar, wezterm and
+# nvim.
+#
+# nvim used to be excluded because Windows reads %LOCALAPPDATA%\nvim, not
+# ~/.config/nvim. 45-xdg-config-home.ps1 now points XDG_CONFIG_HOME at
+# %USERPROFILE%\.config, which nvim honours on Windows, so the one lua/ tree
+# is shared across all three machines. zed is still the holdout.
 # ---------------------------------------------------------------------------
 {{ if eq .chezmoi.os "windows" }}
 **
@@ -61,6 +64,8 @@
 !.glzr/**
 !.config/wezterm
 !.config/wezterm/**
+!.config/nvim
+!.config/nvim/**
 # re-assert the build artifacts, which the .glzr un-ignore above would undo
 .glzr/glazewm/scripts/*.exe
 .glzr/glazewm/errors.log
