@@ -79,6 +79,7 @@ alias srczrc="source ~/.zshrc"
 if command -v openvpn3 >/dev/null 2>&1; then
     alias vpn="openvpn3 session-start --config ~/.config/openvpn/work.ovpn"
     alias vpncheck="openvpn3 sessions-list"
+    alias vpndown="openvpn3 session-manage --config work.ovpn --disconnect"
 fi
 if command -v efibootmgr >/dev/null 2>&1; then
     alias reboot-to-windows="sudo efibootmgr --bootnext 0000 && sudo reboot"
