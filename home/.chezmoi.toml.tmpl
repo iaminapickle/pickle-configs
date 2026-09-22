@@ -41,9 +41,12 @@ workingTree = {{ .chezmoi.workingTree | quote }}
     recipient = {{ $recipient | quote }}
 {{ end -}}
 
+{{/* delta as the pager, not diff.command: chezmoi passes an external     */}}
+{{/* diff command "NUL:" for entries missing on disk, and Git for Windows   */}}
+{{/* (which delta shells out to) cannot open that path.                     */}}
 [diff]
-    command = "delta"
-    args    = ["--paging", "never"]
+    pager     = "delta"
+    pagerArgs = ["--paging", "never"]
 
 [merge]
     command = "nvim"
