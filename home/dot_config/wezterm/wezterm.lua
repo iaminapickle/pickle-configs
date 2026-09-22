@@ -107,6 +107,7 @@ config.font = wezterm.font_with_fallback({
 config.adjust_window_size_when_changing_font_size = false
 config.enable_tab_bar = false
 config.window_close_confirmation = "NeverPrompt"
+config.audible_bell = "Disabled"
 
 ---------------------------------------------------------------------------
 -- Mouse
