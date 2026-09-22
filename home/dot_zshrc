@@ -68,6 +68,13 @@ fi
 # Pipe stdin to the clipboard, e.g. `cat file | toc`
 toc() { printf '%s' "$(cat)" | _clip }
 
+# Pasting leaves the inserted text in standout until the next keypress
+# clears it. zsh's default zle_highlight is
+#   (region:standout special:standout suffix:bold isearch:underline paste:standout)
+# and unlisted contexts keep their defaults, so append-and-override just the
+# paste one rather than restating the whole array.
+zle_highlight+=(paste:none)
+
 # ---------------------------------------------------------------------------
 # Aliases
 # ---------------------------------------------------------------------------
