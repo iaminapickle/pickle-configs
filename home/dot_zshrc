@@ -81,8 +81,31 @@ if command -v openvpn3 >/dev/null 2>&1; then
     alias vpncheck="openvpn3 sessions-list"
     alias vpndown="openvpn3 session-manage --config work.ovpn --disconnect"
 fi
-if command -v efibootmgr >/dev/null 2>&1; then
-    alias reboot-to-windows="sudo efibootmgr --bootnext 0000 && sudo reboot"
+# Mirror of reboot-to-cachy: the same one-shot variables, so Windows boots without
+# the menu and Limine records it as the last entry. efibootmgr --bootnext would skip
+# Limine entirely, which then never learns Windows was the last OS used.
+if [[ -d /sys/firmware/efi/efivars ]]; then
+    reboot-to-windows() {
+        local entry="${REBOOT_TO_WINDOWS_PATH:-Other systems and bootloaders/Windows Boot Manager}"
+        local guid=4a67b082-0a4c-41cf-b6c7-440b29bb8c4f
+        local name value f tmp
+        tmp=$(mktemp) || return 1
+        # efivarfs needs the whole variable in one write(), hence the temp file
+        # and dd rather than piping into tee.
+        for name value in LoaderEntryOneShot "$entry" LoaderConfigTimeoutOneShot menu-disabled; do
+            f=/sys/firmware/efi/efivars/$name-$guid
+            { printf '\x07\x00\x00\x00'
+              printf '%s\0' "$value" | iconv -f UTF-8 -t UTF-16LE } > "$tmp"
+            sudo chattr -i "$f" 2>/dev/null
+            if ! sudo dd if="$tmp" of="$f" bs="$(stat -c%s "$tmp")" count=1 status=none; then
+                print -u2 "reboot-to-windows: could not set $name"
+                rm -f "$tmp"
+                return 1
+            fi
+        done
+        rm -f "$tmp"
+        sudo reboot
+    }
 fi
 
 # The mirror of reboot-to-windows. Limine is already BootOrder[0], so a firmware
