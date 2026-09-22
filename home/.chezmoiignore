@@ -44,6 +44,12 @@
 # ---------------------------------------------------------------------------
 {{ if eq .chezmoi.os "windows" }}
 **
+# The `**` above matches script targets too, which silently disables every
+# .chezmoiscripts/ entry. Un-ignore them: each script template already carries
+# its own OS guard, and a guarded-out template renders empty, which chezmoi
+# skips -- so the routing stays in one place rather than being restated here.
+!.chezmoiscripts
+!.chezmoiscripts/**
 !.gitconfig
 !.gitignore_global
 !.config
@@ -85,6 +91,12 @@ AppData
 # ---------------------------------------------------------------------------
 {{ if and (eq .chezmoi.os "linux") (contains "microsoft" (lower (default "" .chezmoi.kernel.osrelease))) }}
 **
+# The `**` above matches script targets too, which silently disables every
+# .chezmoiscripts/ entry. Un-ignore them: each script template already carries
+# its own OS guard, and a guarded-out template renders empty, which chezmoi
+# skips -- so the routing stays in one place rather than being restated here.
+!.chezmoiscripts
+!.chezmoiscripts/**
 !.gitconfig
 !.gitignore_global
 !.config
