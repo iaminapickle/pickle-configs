@@ -84,16 +84,14 @@ if command -v efibootmgr >/dev/null 2>&1; then
     alias reboot-to-windows="sudo efibootmgr --bootnext 0000 && sudo reboot"
 fi
 
-# The mirror of reboot-to-windows: bcdedit {fwbootmgr} is Windows' one-shot
-# equivalent of `efibootmgr --bootnext`. Reading and setting it both need
-# Administrator, hence the elevated PowerShell; -EncodedCommand avoids any
-# quoting or temp-file cleanup. The entry is matched by description rather
-# than GUID so it survives a bootloader reinstall -- "UEFI OS" is the generic
-# fallback and is deliberately not matched. Override in ~/.zshrc.local with
-# REBOOT_TO_CACHY_ENTRY='Limine' if the guess is wrong.
+# The mirror of reboot-to-windows. Limine is already BootOrder[0], so a firmware
+# bootsequence alone is a no-op; the one-shot EFI variables are what skip its menu,
+# and Limine deletes them as it reads them, leaving ordinary boots alone.
+# Override in ~/.zshrc.local: REBOOT_TO_CACHY_ENTRY, REBOOT_TO_CACHY_PATH.
 if [[ "$(uname -r)" == *[Mm]icrosoft* ]] && [[ -x /mnt/c/Windows/System32/bcdedit.exe ]]; then
     reboot-to-cachy() {
         local pattern="${REBOOT_TO_CACHY_ENTRY:-CachyOS|Limine|Linux Boot Manager|GRUB|systemd-boot}"
+        local entry="${REBOOT_TO_CACHY_PATH:-CachyOS/linux-cachyos}"
         local body enc
         body=$(cat <<'PS'
 $ErrorActionPreference = 'Stop'
@@ -105,6 +103,52 @@ function Fail($msg) {
     $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
     exit 1
 }
+
+Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+public class Fw {
+  [DllImport("kernel32.dll", SetLastError=true, CharSet=CharSet.Unicode)]
+  public static extern bool SetFirmwareEnvironmentVariableExW(
+      string name, string guid, byte[] buf, uint size, uint attrs);
+  [StructLayout(LayoutKind.Sequential)] public struct LUID { public uint Lo; public int Hi; }
+  [StructLayout(LayoutKind.Sequential)] public struct TP { public uint Count; public LUID Luid; public uint Attributes; }
+  [DllImport("advapi32.dll", SetLastError=true)]
+  static extern bool OpenProcessToken(IntPtr h, uint a, out IntPtr t);
+  [DllImport("advapi32.dll", SetLastError=true, CharSet=CharSet.Unicode)]
+  static extern bool LookupPrivilegeValueW(string s, string n, out LUID l);
+  [DllImport("advapi32.dll", SetLastError=true)]
+  static extern bool AdjustTokenPrivileges(IntPtr t, bool d, ref TP n, uint l, IntPtr p, IntPtr r);
+  [DllImport("kernel32.dll")] static extern IntPtr GetCurrentProcess();
+  public static bool EnablePrivilege(string priv) {
+    IntPtr tok; LUID luid;
+    if (!OpenProcessToken(GetCurrentProcess(), 0x0020u | 0x0008u, out tok)) return false;
+    if (!LookupPrivilegeValueW(null, priv, out luid)) return false;
+    TP tp = new TP(); tp.Count = 1; tp.Luid = luid; tp.Attributes = 0x00000002;
+    // Succeeds even when it assigns nothing; only GetLastError says so.
+    if (!AdjustTokenPrivileges(tok, false, ref tp, 0, IntPtr.Zero, IntPtr.Zero)) return false;
+    return Marshal.GetLastWin32Error() == 0;
+  }
+}
+'@
+
+# Boot Loader Interface GUID; NON_VOLATILE is what carries these across the reboot.
+$bliGuid  = '{4a67b082-0a4c-41cf-b6c7-440b29bb8c4f}'
+$bliAttrs = 0x7
+
+function Set-Bli($name, $value) {
+    $bytes = [Text.Encoding]::Unicode.GetBytes($value + "`0")
+    if (-not [Fw]::SetFirmwareEnvironmentVariableExW($name, $bliGuid, $bytes, $bytes.Length, $bliAttrs)) {
+        Fail ("Could not set {0} (Win32 error {1})." -f $name, [Runtime.InteropServices.Marshal]::GetLastWin32Error())
+    }
+}
+
+if (-not [Fw]::EnablePrivilege('SeSystemEnvironmentPrivilege')) {
+    Fail 'Could not enable SeSystemEnvironmentPrivilege; EFI variables are unreachable.'
+}
+
+Set-Bli 'LoaderEntryOneShot'         $entry
+Set-Bli 'LoaderConfigTimeoutOneShot' '0'
 
 $raw = (& bcdedit /enum firmware) -join "`n"
 
@@ -130,12 +174,12 @@ if ($hits.Count -gt 1) {
 & bcdedit /set "{fwbootmgr}" bootsequence $hits[0].Id | Out-Null
 if ($LASTEXITCODE -ne 0) { Fail "bcdedit failed to set bootsequence (exit $LASTEXITCODE)" }
 
-Write-Host ("Next boot: {0}. Rebooting..." -f $hits[0].Desc) -ForegroundColor Magenta
+Write-Host ("Next boot: {0} -> {1}, no menu. Rebooting..." -f $hits[0].Desc, $entry) -ForegroundColor Magenta
 Start-Sleep -Seconds 1
 & shutdown /r /t 0
 PS
 )
-        enc=$(printf '%s\n%s' "\$pattern = '$pattern'" "$body" \
+        enc=$(printf '%s\n%s\n%s' "\$pattern = '$pattern'" "\$entry = '$entry'" "$body" \
               | iconv -f UTF-8 -t UTF-16LE | base64 -w0)
         powershell.exe -NoProfile -Command \
             "Start-Process powershell -Verb RunAs -ArgumentList '-NoProfile','-EncodedCommand','$enc'"
