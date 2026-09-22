@@ -3,8 +3,8 @@ general:
   # script or launching another application.
   # Example: The below command launches Zebar.
 {{- if .multiMonitor }}
-  # focus-sync.exe forces real OS foreground onto an empty monitor GlazeWM has
-  # focused, so new windows land there even if you only hovered.
+  # focus-sync.exe focuses a monitor when its bare desktop is clicked, which
+  # GlazeWM can't do itself -- the desktop isn't a window it manages.
   startup_commands: ['shell-exec zebar', 'shell-exec %USERPROFILE%\.glzr\glazewm\scripts\focus-sync.exe']
 {{- else }}
   startup_commands: ['shell-exec zebar']
@@ -23,10 +23,14 @@ general:
 
   # Whether to automatically focus windows underneath the cursor.
 {{- if .multiMonitor }}
-  # Also gives an empty monitor WM focus on hover, which the per-monitor
-  # workspace keybindings rely on.
-{{- end }}
+  # Off here: the pointer resting on the other monitor kept dragging focus off
+  # the workspace just switched to, so windows opened there and lwin+ bindings
+  # acted on a different window than the keyboard typed into. lwin+alt+k/'
+  # focus a monitor deliberately instead.
+  focus_follows_cursor: false
+{{- else }}
   focus_follows_cursor: true
+{{- end }}
 
   # Whether to switch back and forth between the previously focused
   # workspace when focusing the current workspace.
@@ -204,11 +208,6 @@ window_rules:
     match:
       # Ignores any Zebar windows.
       - window_process: { equals: 'zebar' }
-{{- if .multiMonitor }}
-
-      # focus-sync.exe's invisible helper window.
-      - window_title: { equals: 'GlazeWMFocusSyncHelper' }
-{{- end }}
 
       # Ignores picture-in-picture windows for browsers.
       - window_title: { regex: '[Pp]icture.in.[Pp]icture' }
@@ -245,6 +244,18 @@ binding_modes:
         bindings: ['escape', 'enter']
 
 keybindings:
+{{- if .multiMonitor }}
+  # Shift focus in a given direction, via a helper so the keys still work from
+  # a minimized window (see scripts/focus-dir.exe).
+  - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\focus-dir.exe left']
+    bindings: ['lwin+k', 'rwin+k', 'lwin+left', 'rwin+left']
+  - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\focus-dir.exe right']
+    bindings: ["lwin+'", "rwin+'", 'lwin+right', 'rwin+right']
+  - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\focus-dir.exe up']
+    bindings: ['lwin+;', 'rwin+;', 'lwin+up', 'rwin+up']
+  - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\focus-dir.exe down']
+    bindings: ['lwin+l', 'rwin+l', 'lwin+down', 'rwin+down']
+{{- else }}
   # Shift focus in a given direction.
   - commands: ['focus --direction left']
     bindings: ['lwin+k', 'rwin+k', 'lwin+left', 'rwin+left']
@@ -254,6 +265,7 @@ keybindings:
     bindings: ['lwin+;', 'rwin+;', 'lwin+up', 'rwin+up']
   - commands: ['focus --direction down']
     bindings: ['lwin+l', 'rwin+l', 'lwin+down', 'rwin+down']
+{{- end }}
 
   # Move focused window in a given direction.
   - commands: ['move --direction left']
@@ -348,6 +360,17 @@ keybindings:
   # Focus the workspace that last had focus.
   - commands: ['focus --recent-workspace']
     bindings: ['lwin+s', 'rwin+s']
+
+{{- if .multiMonitor }}
+
+  # Focus a monitor's current workspace without changing which one it shows.
+  # This is how an empty monitor gets focus now that hover doesn't do it, which
+  # lwin+N needs -- it resolves 1-9 vs 11-19 from the focused monitor.
+  - commands: ['focus --monitor 0']
+    bindings: ['lwin+alt+k', 'rwin+alt+k']
+  - commands: ['focus --monitor 1']
+    bindings: ["lwin+alt+'", "rwin+alt+'"]
+{{- end }}
 
 {{- if .multiMonitor }}
   # Change focus to a workspace defined in `workspaces` config. Routed through

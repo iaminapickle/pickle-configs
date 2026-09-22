@@ -6,6 +6,7 @@
 #   workspace-nav.cs {{ include "dot_glzr/glazewm/scripts/workspace-nav.cs" | sha256sum }}
 {{ if .multiMonitor -}}
 #   focus-sync.cs    {{ include "dot_glzr/glazewm/scripts/focus-sync.cs" | sha256sum }}
+#   focus-dir.cs     {{ include "dot_glzr/glazewm/scripts/focus-dir.cs" | sha256sum }}
 {{ end -}}
 
 $ErrorActionPreference = 'Stop'
@@ -40,8 +41,8 @@ $wasRunning = $false
 $builds = @(
     @{ Name = 'workspace-nav'; Refs = @('System.Web.Extensions.dll') }
 {{- if .multiMonitor }}
-    ,@{ Name = 'focus-sync'
-        Refs = @('System.Web.Extensions.dll', 'System.Windows.Forms.dll', 'System.Drawing.dll') }
+    ,@{ Name = 'focus-sync'; Refs = @('System.Web.Extensions.dll') }
+    ,@{ Name = 'focus-dir'; Refs = @('System.Web.Extensions.dll') }
 {{- end }}
 )
 
