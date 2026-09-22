@@ -41,12 +41,14 @@ workingTree = {{ .chezmoi.workingTree | quote }}
     recipient = {{ $recipient | quote }}
 {{ end -}}
 
-{{/* delta as the pager, not diff.command: chezmoi passes an external     */}}
+{{/* delta as the pager, not diff.command: chezmoi passes an external       */}}
 {{/* diff command "NUL:" for entries missing on disk, and Git for Windows   */}}
-{{/* (which delta shells out to) cannot open that path.                     */}}
+{{/* (which delta shells out to) cannot open that path. Excluding           */}}
+{{/* "always" drops run_after_ scripts, which diff as pending forever.      */}}
 [diff]
     pager     = "delta"
     pagerArgs = ["--paging", "never"]
+    exclude   = ["always"]
 
 [merge]
     command = "nvim"
