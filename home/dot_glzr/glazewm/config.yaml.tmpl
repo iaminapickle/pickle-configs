@@ -3,9 +3,8 @@ general:
   # script or launching another application.
   # Example: The below command launches Zebar.
 {{- if .multiMonitor }}
-  # focus-sync.exe forces real OS foreground onto an empty monitor's desktop
-  # when GlazeWM focuses it, so launchers/new windows land on the right
-  # monitor even when you only hovered there (see scripts/focus-sync.cs).
+  # focus-sync.exe forces real OS foreground onto an empty monitor GlazeWM has
+  # focused, so new windows land there even if you only hovered.
   startup_commands: ['shell-exec zebar', 'shell-exec %USERPROFILE%\.glzr\glazewm\scripts\focus-sync.exe']
 {{- else }}
   startup_commands: ['shell-exec zebar']
@@ -24,8 +23,7 @@ general:
 
   # Whether to automatically focus windows underneath the cursor.
 {{- if .multiMonitor }}
-  # Also makes an empty monitor gain WM focus when the cursor moves over its
-  # desktop (with no window to focus there), which the per-monitor 1-9
+  # Also gives an empty monitor WM focus on hover, which the per-monitor
   # workspace keybindings rely on.
 {{- end }}
   focus_follows_cursor: true
@@ -138,14 +136,11 @@ window_behavior:
 
 workspaces:
 {{- if .multiMonitor }}
-  # Monitor 0 (leftmost) gets workspaces '1'-'9'; monitor 1 gets '11'-'19'.
-  # The lwin+N keybindings below pick the right one via a helper script
-  # (see scripts/workspace-nav.exe) based on which monitor is focused.
+  # Monitor 0 gets workspaces 1-9, monitor 1 gets 11-19; workspace-nav.exe
+  # picks the right decade from whichever monitor is focused.
 {{- else }}
-  # Single monitor: just '1'-'9'. The lwin+N keybindings below call GlazeWM's
-  # native focus/move commands directly instead of routing through
-  # scripts/workspace-nav.exe -- there's no second monitor's decade to route
-  # between, so the script would just be spawning a process to do nothing.
+  # Single monitor: just 1-9, and the keybindings call GlazeWM directly rather
+  # than spawning workspace-nav.exe to route between decades that don't exist.
 {{- end }}
   - name: '1'
     bind_to_monitor: 0
@@ -211,8 +206,7 @@ window_rules:
       - window_process: { equals: 'zebar' }
 {{- if .multiMonitor }}
 
-      # Ignores the invisible helper window used by focus-sync.exe to force
-      # real OS foreground onto empty monitors (see general.startup_commands).
+      # focus-sync.exe's invisible helper window.
       - window_title: { equals: 'GlazeWMFocusSyncHelper' }
 {{- end }}
 

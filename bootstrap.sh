@@ -1,10 +1,7 @@
 #!/usr/bin/env bash
 # Fresh CachyOS box -> fully configured, in one command:
-#
 #   bash <(curl -fsSL https://raw.githubusercontent.com/iaminapickle/pickle-configs/main/bootstrap.sh)
-#
-# Clones over HTTPS on purpose: the SSH keys live *inside* this repo
-# (encrypted), so they don't exist yet at this point.
+# HTTPS because the SSH keys live encrypted inside this repo.
 set -euo pipefail
 
 REPO_HTTPS="https://github.com/iaminapickle/pickle-configs.git"
@@ -32,8 +29,7 @@ if [ ! -f "$KEY_FILE" ]; then
 fi
 
 # --- pull and apply --------------------------------------------------------
-# init --apply runs .chezmoiscripts/ in order: packages, then services,
-# then post-install.
+# init --apply runs .chezmoiscripts/ in order.
 log "initialising chezmoi from $REPO_HTTPS"
 chezmoi init --apply "$REPO_HTTPS"
 

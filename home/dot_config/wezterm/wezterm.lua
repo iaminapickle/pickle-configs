@@ -1,6 +1,5 @@
--- Shared by the CachyOS box and Windows. Branches at runtime on
--- wezterm.target_triple rather than being a chezmoi template, so the file
--- stays plain and `chezmoi re-add` keeps working on it.
+-- Shared by CachyOS and Windows. Branches on target_triple at runtime rather
+-- than being a template, so `chezmoi re-add` keeps working on it.
 local wezterm = require("wezterm")
 local act = wezterm.action
 local config = wezterm.config_builder()
@@ -10,10 +9,8 @@ local is_windows = wezterm.target_triple:find("windows") ~= nil
 ---------------------------------------------------------------------------
 -- Colours
 ---------------------------------------------------------------------------
--- On Linux the palette is written by `caelestia scheme` and re-read on
--- reload. On Windows that file doesn't exist, so fall back to a static
--- palette -- guarded with pcall because a bare dofile on a missing path is a
--- hard error, not nil.
+-- `caelestia scheme` writes this on Linux; Windows has no such file, so fall
+-- back to a static palette. pcall because dofile on a missing path throws.
 local scheme
 if not is_windows then
 	local scheme_path = wezterm.home_dir .. "/.config/hypr/scheme/current.lua"
@@ -90,9 +87,8 @@ end
 ---------------------------------------------------------------------------
 -- Shell
 ---------------------------------------------------------------------------
--- Windows drops straight into the WSL box; Linux uses the login shell.
--- No `-d <distro>` on purpose: the name differs per machine (Ubuntu-22.04
--- at work, 24.04 at home), so this follows whatever the default distro is.
+-- Windows drops straight into WSL; Linux uses the login shell. No `-d` so it
+-- follows the default distro, whose name differs per machine.
 if is_windows then
 	config.default_prog = { "wsl.exe", "~" }
 else
@@ -116,8 +112,7 @@ config.window_close_confirmation = "NeverPrompt"
 -- Mouse
 ---------------------------------------------------------------------------
 config.mouse_bindings = {
-	-- Disable copy-to-clipboard on mouse-up after a drag-select; selection
-	-- still works.
+	-- No copy-on-select; the selection itself still works.
 	{
 		event = { Up = { streak = 1, button = "Left" } },
 		mods = "NONE",
@@ -149,12 +144,9 @@ config.keys = {
 		action = act.ShowLauncher,
 	},
 	{
-		-- Aliased straight to PasteFrom with no probe beforehand -- same action
-		-- Ctrl+Shift+V's default binding uses, so it's exactly as fast. Used to
-		-- shell out to a per-keypress powershell.exe image-clipboard check
-		-- first (add ~250-300ms every press); that's gone now, so Ctrl+Alt+V
-		-- below is the escape hatch for pasting an image into an app that reads
-		-- Ctrl+V itself (e.g. Claude Code).
+		-- No image probe beforehand: that shelled out to powershell.exe on every
+		-- press for ~250-300ms. Ctrl+Alt+V below is the escape hatch for apps
+		-- that read Ctrl+V themselves.
 		key = "v",
 		mods = "CTRL",
 		action = act.PasteFrom("Clipboard"),
@@ -177,8 +169,7 @@ if is_windows then
 		}),
 	})
 else
-	-- Ctrl+C copies the selection when there is one, and otherwise sends the
-	-- interrupt through unchanged.
+	-- Copy the selection if there is one, otherwise pass the interrupt through.
 	table.insert(config.keys, {
 		key = "c",
 		mods = "CTRL",

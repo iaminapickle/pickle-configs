@@ -8,19 +8,10 @@ opt.number = true
 opt.relativenumber = true
 opt.termguicolors = true
 
--- xclip talks to the X11 clipboard, which WSLg doesn't reliably bridge to the
--- Windows clipboard. Under WSL, reach the real Windows clipboard via
--- win32yank instead (~/.local/bin, on $PATH via .zshrc) -- a native binary,
--- so no CRLF getting left behind like the clip.exe/powershell.exe route did.
--- NOTE: ~/.local/bin/win32yank.exe is a symlink to a copy on the Windows
--- filesystem (C:\Users\<user>\bin\win32yank.exe), not a real file here.
--- Launching a Windows .exe that lives on ext4 makes Windows pull it back
--- across the WSL filesystem bridge every time: measured 96ms vs 63ms per
--- call, so keep the binary Windows-side. Not chezmoi-managed, so this needs
--- redoing by hand on a fresh WSL box.
--- Guarded on win32yank's existence so this file stays plain and shared with
--- the CachyOS box, which falls through to nvim's default xclip/wl-copy
--- provider untouched.
+-- WSLg doesn't reliably bridge X11's clipboard to Windows', so reach the real
+-- one via win32yank. Installed by 35-wsl-win32yank.sh, which keeps the binary
+-- Windows-side (96ms vs 63ms per call off ext4) and symlinks it into
+-- ~/.local/bin. Guarded on its existence so CachyOS falls through to wl-copy.
 if vim.fn.executable("win32yank.exe") == 1 then
   vim.g.clipboard = {
     name = "win32yank",

@@ -1,22 +1,7 @@
 {{- if eq .chezmoi.os "windows" -}}
-# Point XDG_CONFIG_HOME at %USERPROFILE%\.config.
-#
-# Neovim on Windows reads %LOCALAPPDATA%\nvim unless XDG_CONFIG_HOME is set,
-# so without this the .config/nvim entries land in a directory nvim never
-# looks in -- which is why the Windows half of .chezmoiignore used to skip
-# nvim altogether. With it set, all three machines share one lua/ tree.
-#
-# Consistent with what the box already does: .config/git and .config/wezterm
-# deploy under ~/.config here too, because git and wezterm look there on
-# Windows natively. This just extends that to the tools that don't.
-#
-# User scope rather than Machine: no elevation needed, and it survives
-# reboots. Note it only reaches processes started afterwards -- an already
-# open terminal keeps the old value until restarted.
-#
-# run_after_ rather than run_onchange_, matching 50-ssh-acl.ps1: this script
-# has no dynamic content, so run_onchange_ would fire once and never verify
-# again. A registry read per apply is a few milliseconds and always correct.
+# Point XDG_CONFIG_HOME at %USERPROFILE%\.config so Windows nvim reads
+# .config/nvim rather than %LOCALAPPDATA%\nvim. User scope, so no elevation;
+# only new processes see it. run_after_ to re-assert on every apply.
 
 $ErrorActionPreference = 'Stop'
 

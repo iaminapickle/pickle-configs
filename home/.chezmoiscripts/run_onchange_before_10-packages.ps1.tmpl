@@ -1,14 +1,7 @@
 {{- if eq .chezmoi.os "windows" -}}
-# Package bootstrap, Windows half. Mirrors 10-packages.sh.tmpl on the Arch
-# side: re-runs automatically whenever the rendered package list below
-# changes, because chezmoi hashes the script contents.
-#
-# winget is the primary. It ships with Windows, so there is nothing to
-# bootstrap. Chocolatey is only touched if `packages.windows.choco` is
-# non-empty -- the same lazy pattern the Arch script uses for paru.
-#
-# Written for Windows PowerShell 5.1, which is what chezmoi invokes .ps1
-# scripts with by default.
+# Package bootstrap, Windows half. Mirrors 10-packages.sh.tmpl: winget is the
+# primary, chocolatey only if packages.windows.choco is non-empty.
+# Written for PowerShell 5.1, which is what chezmoi invokes .ps1 with.
 
 $ErrorActionPreference = 'Stop'
 
@@ -20,17 +13,10 @@ if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
     throw "winget not found. Install 'App Installer' from the Microsoft Store first."
 }
 
-# Portable packages (delta, rg, bat, fzf, zoxide, zig) are "installed" by
-# dropping a symlink in %LOCALAPPDATA%\Microsoft\WinGet\Links, which winget
-# puts on the user PATH. Creating a symlink as a non-admin requires Developer
-# Mode; without it winget logs "Failed to create symlink", still exits 0, and
-# the binaries end up installed but unreachable -- delta missing breaks
-# git's pager, and zig missing stops nvim-treesitter compiling its parsers.
-#
-# Checked before the install loop so it can be fixed before anything is
-# downloaded. Warn rather than throw: everything that ships an installer
-# (Neovim, Starship, Git, wezterm, GlazeWM, Zebar) lands in Program Files and
-# works either way.
+# Portable packages install as symlinks in WinGet\Links, which a non-admin can
+# only create with Developer Mode on -- without it winget still exits 0 and the
+# binaries are unreachable. Warn, don't throw: anything with a real installer
+# lands in Program Files regardless.
 $devMode = (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock' `
     -Name AllowDevelopmentWithoutDevLicense -ErrorAction SilentlyContinue).AllowDevelopmentWithoutDevLicense
 if ($devMode -ne 1) {
@@ -52,10 +38,8 @@ $WingetPkgs = @(
 Log "syncing winget packages ($($WingetPkgs.Count))"
 
 foreach ($id in $WingetPkgs) {
-    # Check first rather than leaning on install's already-installed exit
-    # code: it keeps the output quiet and skips a pointless re-download.
-    # --source winget avoids the msstore ambiguity prompt, which would
-    # otherwise hang an unattended run.
+    # Check first to stay quiet and skip a re-download. --source winget avoids
+    # the msstore ambiguity prompt, which would hang an unattended run.
     winget list --id $id --exact --source winget *> $null
     if ($LASTEXITCODE -eq 0) { continue }
 
@@ -64,8 +48,7 @@ foreach ($id in $WingetPkgs) {
         --accept-package-agreements --accept-source-agreements `
         --disable-interactivity
 
-    # 0x8A150061 is "package already installed" -- benign, and still
-    # reachable when the package came from another source.
+    # 0x8A150061 is "already installed" -- benign, still reachable via another source.
     if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne -1978335135) {
         Warn "winget install $id failed (exit $LASTEXITCODE) -- continuing"
     }
@@ -73,8 +56,7 @@ foreach ($id in $WingetPkgs) {
 
 {{ if .packages.windows.choco }}
 # --- chocolatey (fallback only) --------------------------------------------
-# Reached only because packages.windows.choco is non-empty. Needs an elevated
-# shell; the install below is Chocolatey's own documented bootstrap.
+# Only reached when packages.windows.choco is non-empty. Needs an elevated shell.
 $ChocoPkgs = @(
 {{- range $group, $pkgs := .packages.windows.choco }}
     # {{ $group }}

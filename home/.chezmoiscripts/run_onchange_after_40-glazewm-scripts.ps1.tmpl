@@ -1,14 +1,8 @@
 {{- if eq .chezmoi.os "windows" -}}
-# Build the GlazeWM helper binaries from the C# sources in
-# ~/.glzr/glazewm/scripts. Only the .cs files are tracked; the .exe are build
-# artifacts and stay out of git.
-#
-# No toolchain to install: both helpers target .NET Framework 4.x, whose
-# csc.exe ships with every Windows install. Nothing here needs the .NET SDK.
-#
-# Re-runs whenever a source changes (or multiMonitor is answered differently
-# -- see .chezmoi.toml.tmpl) -- chezmoi hashes this rendered script, so the
-# digests below are what trigger a rebuild:
+# Build the GlazeWM helpers from the tracked .cs in ~/.glzr/glazewm/scripts;
+# the .exe are build artifacts and stay out of git. Both target .NET Framework
+# 4.x, whose csc.exe ships with Windows, so there is no toolchain to install.
+# The digests below are what trigger a rebuild:
 #   workspace-nav.cs {{ include "dot_glzr/glazewm/scripts/workspace-nav.cs" | sha256sum }}
 {{ if .multiMonitor -}}
 #   focus-sync.cs    {{ include "dot_glzr/glazewm/scripts/focus-sync.cs" | sha256sum }}
@@ -32,7 +26,6 @@ if (-not $csc) {
 
 {{ if .multiMonitor -}}
 # focus-sync runs persistently, so its .exe is locked while GlazeWM is up.
-# Stop it, rebuild, and let the caller restart GlazeWM to bring it back.
 $wasRunning = [bool](Get-Process focus-sync -ErrorAction SilentlyContinue)
 if ($wasRunning) {
     Log "stopping focus-sync to unlock its binary"
@@ -43,8 +36,7 @@ if ($wasRunning) {
 $wasRunning = $false
 {{ end -}}
 
-# -target:winexe matters: these are bound to keys, and a console subsystem
-# binary flashes a window on every single press.
+# -target:winexe: a console binary would flash a window on every keypress.
 $builds = @(
     @{ Name = 'workspace-nav'; Refs = @('System.Web.Extensions.dll') }
 {{- if .multiMonitor }}

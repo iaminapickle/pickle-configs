@@ -2,8 +2,7 @@
 #
 #   irm https://raw.githubusercontent.com/iaminapickle/pickle-configs/main/bootstrap.ps1 | iex
 #
-# STATUS: scaffold. Package install and a PowerShell profile aren't ported
-# yet; SSH keys, git identity, and GlazeWM + Zebar already work.
+# A PowerShell profile is still not ported; everything else works.
 
 $ErrorActionPreference = 'Stop'
 

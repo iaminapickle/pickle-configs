@@ -1,23 +1,11 @@
-// Background daemon: forces a real Win32 foreground-window change onto an
-// empty monitor's desktop whenever GlazeWM's focus lands there.
-//
-// Why this exists: Windows only allows a genuine input event (click/keypress)
-// to change the real foreground window. Hovering the mouse (focus_follows_cursor)
-// updates GlazeWM's own internal focus bookkeeping, but NOT the real Win32
-// foreground window when the target workspace is empty (nothing there to
-// legitimately receive it). Anything that relies on real foreground/focus
-// state to decide where a newly-launched app's window should go — which is
-// effectively all of them, including GlazeWM's own new-window placement —
-// then gets it wrong. This daemon subscribes to GlazeWM's focus_changed
-// event over its WebSocket IPC (127.0.0.1:6123) and, whenever focus lands on
-// an empty workspace (type=="workspace", no children), moves an invisible
-// 1x1 helper window onto that monitor and forces it to become the real
-// foreground window (using the standard Alt-keypress trick to bypass
-// Windows' foreground-lock timer), so subsequent launches land correctly.
-//
-// Runs persistently, started via general.startup_commands in config.yaml.
-// The helper window itself is ignored by GlazeWM via a window_rule matching
-// its title (see config.yaml).
+// Forces a real Win32 foreground change onto an empty monitor when GlazeWM
+// focuses it. Hovering updates GlazeWM's own focus bookkeeping but not the OS
+// foreground window when there is nothing there to receive it, so new windows
+// land on the wrong monitor. Subscribes to focus_changed over GlazeWM's
+// WebSocket IPC (127.0.0.1:6123) and parks an invisible 1x1 helper window on
+// that monitor, using the Alt-keypress trick to beat the foreground-lock
+// timer. Runs persistently via general.startup_commands; a window_rule in
+// config.yaml keeps GlazeWM from managing the helper.
 using System;
 using System.Net.WebSockets;
 using System.Runtime.InteropServices;

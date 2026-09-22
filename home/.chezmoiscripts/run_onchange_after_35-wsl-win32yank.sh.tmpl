@@ -1,21 +1,11 @@
-{{- /* WSL only. win32yank is what bridges nvim's clipboard to the real
-       Windows clipboard -- see dot_config/nvim/lua/config/options.lua, which
-       sets vim.g.clipboard when win32yank.exe is on $PATH. Not needed on the
-       CachyOS box (wl-copy) or on native Windows (nvim talks to the clipboard
-       directly), hence the WSL guard.
-
-       run_onchange rather than run_once so bumping VERSION/SHA256 below
-       re-runs this, the same way 10-packages re-runs on a package list
-       change. */ -}}
+{{- /* WSL only. Bridges nvim's clipboard to the Windows one -- see
+       options.lua, which sets vim.g.clipboard when this is on $PATH. CachyOS
+       uses wl-copy and native Windows needs no bridge. */ -}}
 {{- if and (eq .chezmoi.os "linux") (contains "microsoft" (lower (default "" .chezmoi.kernel.osrelease))) -}}
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Pinned rather than tracking /releases/latest/download so a fresh box always
-# gets the build this SHA256 was verified against. v0.1.1 IS the latest as of
-# 2026-09-22 -- upstream's last release was 2023-03-17 -- so pinning costs
-# nothing today. SHA256 verified against the official release asset, not just
-# copied off a local file.
+# Pinned. v0.1.1 is the latest as of 2026-09-22; upstream last released in 2023.
 VERSION=v0.1.1
 SHA256=dade5ae8b0bc1c029d18f260e30be1e89a3b9512bcc2904c038be75e80b02ff4
 URL="https://github.com/equalsraf/win32yank/releases/download/${VERSION}/win32yank-x64.zip"
@@ -25,16 +15,10 @@ log() { printf '\033[1;35m::\033[0m %s\n' "$*"; }
 LINK="$HOME/.local/bin/win32yank.exe"
 CMD=/mnt/c/Windows/System32/cmd.exe
 
-# The binary MUST live on the Windows filesystem. Launching a Windows .exe
-# stored on ext4 makes Windows drag it back across the WSL filesystem bridge
-# on every single call -- measured 96ms vs 63ms per clipboard op, and every
-# nvim y/p/d pays it while clipboard=unnamedplus is set. So it is installed
-# under the Windows user profile and only symlinked into ~/.local/bin (which
-# .zshrc already puts on $PATH, so nvim's executable() check finds it).
-#
-# The Windows username usually differs from the WSL one, so ask Windows for
-# the profile path rather than guessing from $USER. Full path to cmd.exe
-# because /etc/wsl.conf sets appendWindowsPath=false.
+# The .exe must live on the Windows filesystem -- running one off ext4 costs
+# 96ms vs 63ms per call, and every nvim y/p/d pays it. So install it under the
+# Windows profile and symlink into ~/.local/bin. Ask cmd.exe for that profile
+# path rather than guessing; full path because appendWindowsPath=false.
 if [ ! -x "$CMD" ]; then
     log "no $CMD -- not a WSL box with interop? skipping win32yank"
     exit 0
@@ -57,10 +41,8 @@ else
         fi
     done
 
-    # There is no package management on the WSL side (10-packages.sh excludes
-    # it), so unzip cannot be declared as a dependency anywhere -- and a stock
-    # Ubuntu has no unzip, bsdtar or 7z. python3 is always there and its
-    # zipfile module is stdlib, so fall back to it rather than bailing out.
+    # Stock Ubuntu has no unzip and nowhere to declare it as a dependency, but
+    # python3 is always there and zipfile is stdlib.
     if command -v unzip >/dev/null; then
         extract() { unzip -q -o "$1" -d "$2"; }
     elif command -v python3 >/dev/null; then
@@ -95,8 +77,7 @@ else
     cp "$exe" "$target"
 fi
 
-# Point ~/.local/bin at the Windows-side copy. Benchmarked against calling the
-# Windows path directly: 51.7ms vs 49.9ms, i.e. the indirection is free.
+# Point ~/.local/bin at the Windows-side copy; the indirection is free (51.7 vs 49.9ms).
 if [ "$(readlink -f "$LINK" 2>/dev/null || true)" != "$(readlink -f "$target")" ]; then
     log "linking $LINK -> $target"
     mkdir -p "$(dirname "$LINK")"

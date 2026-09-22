@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
-# Import this machine's live configs into the chezmoi source state.
-#
-# Safe to re-run: `chezmoi add` overwrites the source copy from the live file,
-# so this doubles as "pull all my local edits back into the repo".
+# Import this machine's live configs into the chezmoi source state. Safe to
+# re-run -- it doubles as "pull all my local edits back into the repo".
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -18,8 +16,7 @@ warn() { printf '\033[1;33m--\033[0m %s\n' "$*"; }
 
 command -v "${CHEZMOI_BIN:-chezmoi}" >/dev/null || { echo "chezmoi not found" >&2; exit 1; }
 
-# Paths that exist get added; paths that don't are reported and skipped, so the
-# same script works on a partially-configured machine.
+# Missing paths are reported and skipped, so this works on a partial machine.
 add() {
     local mode="$1"; shift
     for target in "$@"; do
@@ -27,9 +24,7 @@ add() {
             warn "skip (absent): ~/$target"
             continue
         fi
-        # Never overwrite a hand-maintained template with the flat live file.
-        # Anything whose source already ends in .tmpl carries logic that a
-        # re-import would flatten away -- edit those with `chezmoi edit`.
+        # A .tmpl source carries logic a re-import would flatten. Use `chezmoi edit`.
         src=$("${CM[@]}" source-path -- "$HOME/$target" 2>/dev/null || true)
         if [ -n "$src" ] && [ "${src%.tmpl}" != "$src" ]; then
             warn "skip (hand-maintained template): ~/$target"

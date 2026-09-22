@@ -1,36 +1,23 @@
 {{- if eq .chezmoi.os "windows" -}}
-# nvim-treesitter's main branch shells out to the tree-sitter CLI for
-# `tree-sitter build` -- see .config/nvim/lua/plugins/treesitter.lua, which
-# installs 13 parsers. Without the CLI each one fails with
-#   ENOENT: no such file or directory (cmd): 'tree-sitter'
-# zig (in .chezmoidata/packages.yaml) is the C compiler the CLI then drives;
-# both halves have to be present.
-#
-# winget carries no tree-sitter CLI package -- searching it returns only
-# tools tagged tree-sitter (ast-grep, difftastic, topiary) -- so this fetches
-# the release binary directly, mirroring 36-tree-sitter-cli.sh on the WSL side.
-#
-# run_onchange rather than run_once so bumping $Version/$Sha256 re-runs this.
+# nvim-treesitter's main branch needs the tree-sitter CLI, which winget has no
+# package for -- so fetch the release binary, like 36-tree-sitter-cli.sh does
+# for WSL. zig, from packages.yaml, is the compiler the CLI drives.
 
 $ErrorActionPreference = 'Stop'
 
 function Log($msg) { Write-Host ":: $msg" -ForegroundColor Magenta }
 
-# Pinned rather than tracking the latest release so a fresh box always gets
-# the build this hash was verified against. The hash is of the extracted
-# tree-sitter.exe, not the .zip, so the already-installed check can reuse it.
+# Pinned, and the hash is of the extracted .exe so the check below can reuse it.
 $Version = 'v0.27.0'
 $Sha256  = '9FBC4F285C876B1A38C7E9D5223A51FB7842255285CDD7DB3FFB0BA3934F2662'
 $Url     = "https://github.com/tree-sitter/tree-sitter/releases/download/$Version/tree-sitter-cli-windows-x64.zip"
 
-# Same ~/bin that 35-wsl-win32yank.sh parks win32yank.exe in. Unlike
-# win32yank -- which WSL reaches by absolute path -- nvim spawns
-# `tree-sitter` by name, so the directory has to be on the Windows PATH.
+# Same ~/bin as win32yank, but this one has to be on PATH: nvim spawns
+# `tree-sitter` by name.
 $binDir = Join-Path $env:USERPROFILE 'bin'
 $target = Join-Path $binDir 'tree-sitter.exe'
 
-# Coalesced to '' because a profile that has never had a user PATH entry
-# returns $null here, and calling .TrimEnd() on that is a hard error.
+# Coalesced to '' -- an empty user PATH returns $null, and .TrimEnd() on that throws.
 $userPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
 if (-not $userPath) { $userPath = '' }
 if (($userPath -split ';') -notcontains $binDir) {
@@ -53,12 +40,11 @@ New-Item -ItemType Directory -Path $tmp | Out-Null
 try {
     $zip = Join-Path $tmp 'tree-sitter.zip'
 
-    # Windows PowerShell 5.1 does not always negotiate TLS 1.2 by default, and
-    # GitHub refuses anything older. Set on the invocation, not machine-wide.
+    # 5.1 does not always negotiate TLS 1.2, and GitHub refuses anything older.
     [Net.ServicePointManager]::SecurityProtocol =
         [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 
-    # Invoke-WebRequest's progress bar makes a multi-MB download crawl on 5.1.
+    # The progress bar makes a multi-MB download crawl on 5.1.
     $prevProgress = $ProgressPreference
     $ProgressPreference = 'SilentlyContinue'
     try {
@@ -67,8 +53,7 @@ try {
         $ProgressPreference = $prevProgress
     }
 
-    # Expand-Archive rather than an external unzip: it ships with 5.1, so
-    # there is no extra dependency to install first.
+    # Expand-Archive ships with 5.1, so there is no unzip to install first.
     Expand-Archive -Path $zip -DestinationPath $tmp -Force
 
     $exe = Join-Path $tmp 'tree-sitter.exe'

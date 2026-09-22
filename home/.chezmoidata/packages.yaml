@@ -1,12 +1,6 @@
-# Curated package set for a pickle box.
-#
-# Deliberately NOT a snapshot of `pacman -Qqe`. The CachyOS installer already
-# provides the kernel, firmware, filesystem tooling, printing stack, bootloader
-# and hardware detection; re-listing those here only creates noise. What is
-# listed below is the part of the machine that is *mine*.
-#
-# Grouping is for human readability only -- the bootstrap installs everything.
-# Trim a group rather than hunting through one flat list.
+# Curated package set -- deliberately not a `pacman -Qqe` snapshot, since the
+# installer already provides the base system. Groups are for readability only;
+# the bootstrap installs all of them.
 
 packages:
   arch:
@@ -188,9 +182,8 @@ packages:
 
   windows:
     winget:
-      # Tiling WM + bar. The GlazeWM installer offers Zebar via a checkbox;
-      # they are listed separately here so the versions are tracked
-      # independently. config.yaml's window_rules already assume PowerToys.
+      # Zebar is listed separately from GlazeWM so their versions track
+      # independently. window_rules in config.yaml assume PowerToys.
       desktop:
         - glzr-io.glazewm
         - glzr-io.zebar
@@ -207,19 +200,14 @@ packages:
         - ajeetdsouza.zoxide
         - dandavison.delta
 
-        # The C compiler nvim-treesitter's parser build drives. zig is the
-        # smallest toolchain it accepts -- no Visual Studio Build Tools. This
-        # is only half of what treesitter needs: the tree-sitter CLI that
-        # invokes it has no winget package, so 46-tree-sitter-cli.ps1 fetches
-        # that separately. See lua/plugins/treesitter.lua (13 parsers).
+        # The C compiler treesitter's parser build drives. The CLI that invokes
+        # it has no winget package -- 46-tree-sitter-cli.ps1 fetches that.
         - zig.zig
-        # pdftotext, for the *.pdf BufReadCmd preview in lua/config/pdf.lua.
-        # Drop this line and everything still works except opening a PDF.
+        # pdftotext, for the *.pdf preview in lua/config/pdf.lua.
         - oschwartz10612.Poppler
 
-    # Fallback only, for anything winget doesn't carry. Leave empty and the
-    # package script never touches chocolatey at all; add a group here and it
-    # bootstraps choco on demand (needs an elevated `chezmoi apply`).
+    # Fallback for anything winget lacks. Empty means choco is never touched;
+    # adding a group bootstraps it on demand (needs an elevated apply).
     choco: {}
 
 # Systemd units enabled for the user / system on a fresh Arch box.

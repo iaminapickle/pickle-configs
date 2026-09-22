@@ -1,11 +1,7 @@
-{{- /* Arch/CachyOS only: caelestia-shell ships its QML at /etc/xdg/quickshell/caelestia
-       with no config knob for a few things (the session-panel gif, click-vs-hover bar
-       popouts). Quickshell loads a config directory whole -- no partial per-file
-       overlay -- so we rebuild a full user copy at ~/.config/quickshell/caelestia from
-       the currently installed package and only then apply our small patch on top. This
-       reruns whenever the package version or the patch files change, so the fork stays
-       in sync with upstream instead of going stale. WSL is linux too but has no
-       desktop, so skip it there. */ -}}
+{{- /* Arch/CachyOS only. Quickshell loads a config directory whole, with no
+       per-file overlay, so rebuild a full user copy of caelestia-shell's QML
+       from the installed package and apply our patch on top. Reruns when
+       either changes, so the fork does not go stale. */ -}}
 {{- if and (eq .chezmoi.os "linux") (not (contains "microsoft" (lower (default "" .chezmoi.kernel.osrelease)))) -}}
 #!/usr/bin/env bash
 # caelestia-shell: {{ output "sh" "-c" "pacman -Q caelestia-shell 2>/dev/null || true" | trim }}

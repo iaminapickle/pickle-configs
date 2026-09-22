@@ -9,10 +9,8 @@
 //                                       within itself) so each monitor's
 //                                       workspace set is fully isolated.
 //
-// Talks to GlazeWM's own WebSocket IPC (127.0.0.1:6123) directly over a
-// single connection, instead of spawning the glazewm-cli twice (each of
-// which opens and tears down its own connection) — that was the dominant
-// cost versus PowerShell startup itself.
+// Uses one direct WebSocket IPC connection (127.0.0.1:6123) rather than
+// spawning glazewm-cli twice, which was the dominant cost.
 using System;
 using System.Collections.Generic;
 using System.Net.WebSockets;

@@ -1,7 +1,5 @@
-# Shared by the CachyOS box and WSL. Branches at runtime rather than being a
-# chezmoi template, so the file stays plain and `chezmoi re-add` keeps working
-# on it. Machine-specific settings belong in ~/.zshrc.local (untracked), which
-# is sourced at the very bottom.
+# Shared by CachyOS and WSL. Branches at runtime rather than being a template,
+# so `chezmoi re-add` keeps working. Per-box settings go in ~/.zshrc.local.
 
 # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
 # Initialization code that may require console input (password prompts, [y/n]
@@ -13,9 +11,8 @@ fi
 # ---------------------------------------------------------------------------
 # Plugin framework
 # ---------------------------------------------------------------------------
-# CachyOS ships a curated zsh config; everywhere else (Ubuntu under WSL) use
-# oh-my-zsh plus znap. Both end up on powerlevel10k, so everything below this
-# block is identical either way.
+# CachyOS ships a curated zsh config; WSL uses oh-my-zsh + znap. Both land on
+# powerlevel10k, so everything below is identical either way.
 if [[ -r /usr/share/cachyos-zsh-config/cachyos-config.zsh ]]; then
     source /usr/share/cachyos-zsh-config/cachyos-config.zsh
     unsetopt correct_all correct
@@ -52,9 +49,8 @@ export PATH="$HOME/.local/bin:$PATH"
 # ---------------------------------------------------------------------------
 # Clipboard
 # ---------------------------------------------------------------------------
-# Wayland on the CachyOS box, clip.exe under WSL (full path: PATH interop can
-# be switched off), X11 as a fallback. Everything that copies goes through
-# _clip so the rest of the file doesn't care.
+# Wayland on CachyOS, clip.exe under WSL (full path, since PATH interop can be
+# off), X11 as a fallback. Everything that copies goes through _clip.
 if command -v wl-copy >/dev/null 2>&1; then
     _clip() { wl-copy }
 elif [[ -x /mnt/c/Windows/System32/clip.exe ]]; then
@@ -68,11 +64,8 @@ fi
 # Pipe stdin to the clipboard, e.g. `cat file | toc`
 toc() { printf '%s' "$(cat)" | _clip }
 
-# Pasting leaves the inserted text in standout until the next keypress
-# clears it. zsh's default zle_highlight is
-#   (region:standout special:standout suffix:bold isearch:underline paste:standout)
-# and unlisted contexts keep their defaults, so append-and-override just the
-# paste one rather than restating the whole array.
+# zsh leaves pasted text in standout until the next keypress. Append rather
+# than assign, so the other zle_highlight contexts keep their defaults.
 zle_highlight+=(paste:none)
 
 # ---------------------------------------------------------------------------
@@ -91,23 +84,13 @@ if command -v efibootmgr >/dev/null 2>&1; then
     alias reboot-to-windows="sudo efibootmgr --bootnext 0000 && sudo reboot"
 fi
 
-# The mirror image, for the WSL side of the same dual-boot box: reboot
-# straight into CachyOS. Windows' equivalent of `efibootmgr --bootnext` is a
-# one-shot firmware boot sequence set through bcdedit {fwbootmgr}.
-#
-# Reading *and* setting it need Administrator, so the work happens in an
-# elevated PowerShell. The UAC prompt is the speed bump here that sudo is on
-# the Linux side. The script is passed as -EncodedCommand (base64 UTF-16LE)
-# rather than a temp file: no quoting to get wrong, and nothing to clean up.
-#
-# The entry is matched by description, not a hardcoded GUID, so it survives a
-# bootloader reinstall. The default pattern covers the bootloaders CachyOS
-# actually installs -- Limine is its current default, and the firmware entry
-# is named after the bootloader, not the distro. Note "UEFI OS" is the generic
-# \EFI\BOOT\BOOTX64.EFI fallback entry and is deliberately not matched.
-#
-# If the guess is wrong, pin it in ~/.zshrc.local:
-#   REBOOT_TO_CACHY_ENTRY='Limine'
+# The mirror of reboot-to-windows: bcdedit {fwbootmgr} is Windows' one-shot
+# equivalent of `efibootmgr --bootnext`. Reading and setting it both need
+# Administrator, hence the elevated PowerShell; -EncodedCommand avoids any
+# quoting or temp-file cleanup. The entry is matched by description rather
+# than GUID so it survives a bootloader reinstall -- "UEFI OS" is the generic
+# fallback and is deliberately not matched. Override in ~/.zshrc.local with
+# REBOOT_TO_CACHY_ENTRY='Limine' if the guess is wrong.
 if [[ "$(uname -r)" == *[Mm]icrosoft* ]] && [[ -x /mnt/c/Windows/System32/bcdedit.exe ]]; then
     reboot-to-cachy() {
         local pattern="${REBOOT_TO_CACHY_ENTRY:-CachyOS|Limine|Linux Boot Manager|GRUB|systemd-boot}"
@@ -202,17 +185,10 @@ alias t2="tree -L 2 -F"
 # Git helpers
 # ---------------------------------------------------------------------------
 
-# Print the default branch of a remote (default: origin).
-#
-# refs/remotes/<remote>/HEAD is written at clone time, so the common case costs
-# nothing. When it is missing -- a --single-branch or older clone -- ask the
-# remote once; set-head caches the answer in the ref so the next call is local
-# again. If the remote's default branch changes later the ref goes stale;
-# `git remote set-head origin -a` refreshes it.
-#
-# Asking the remote is what makes this portable: repos whose default branch is
-# neither main nor master resolve correctly without hardcoding a candidate
-# list, which also keeps workplace branch names out of this file.
+# Print a remote's default branch. refs/remotes/<remote>/HEAD is written at
+# clone time, so the common case is local; if it is missing, ask the remote
+# once and let set-head cache it. Asking beats a hardcoded main/master list.
+# `git remote set-head origin -a` refreshes a stale ref.
 git-default-branch() {
     local remote ref
     remote=${1:-origin}
@@ -346,13 +322,10 @@ if [[ "$(uname -r)" == *[Mm]icrosoft* ]]; then
     fi
 fi
 
-# Unbind Ctrl-V (quoted-insert) so an accidental Ctrl-V (instead of
-# Ctrl-Shift-V) is a no-op instead of inserting literal control characters
-# like ^V
+# Unbind quoted-insert so a stray Ctrl-V is a no-op rather than inserting ^V.
 bindkey -r "^V"
 
-# Silence the terminal bell zsh triggers on things like backspacing past the
-# start of the line or Esc with nothing left to do.
+# Silence the bell zsh rings on backspacing past the start of the line.
 unsetopt BEEP
 
 # ---------------------------------------------------------------------------
@@ -384,7 +357,6 @@ echo "|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_
 echo "          Welcome back $USER! Today is $start_day_name $start_day$day_suffix $start_month_year          "
 
 # ---------------------------------------------------------------------------
-# Machine-local overrides -- untracked on purpose. Anything specific to one
-# box, or to work, lives here and never reaches the repo.
+# Machine-local overrides -- untracked, never reaches the repo.
 # ---------------------------------------------------------------------------
 [[ -r ~/.zshrc.local ]] && source ~/.zshrc.local

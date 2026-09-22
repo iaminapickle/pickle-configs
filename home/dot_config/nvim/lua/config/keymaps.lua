@@ -41,12 +41,8 @@ map("n", "<C-w>l", "<C-w>j")
 map("n", "<C-w>;", "<C-w>k")
 map("n", "<C-w>'", "<C-w>l")
 
--- GUI-style Ctrl-C/Ctrl-V clipboard shortcuts. Visual-mode paste replaces the
--- selection via a blackhole-register delete (matching the "_ pattern above)
--- so it can't clobber the "+ register on the way in -- plain visual `p` with
--- clipboard=unnamedplus would otherwise overwrite "+ with the text it just
--- replaced. Insert-mode Ctrl-C is left as Vim's default (same as <Esc>)
--- since there's no selection in insert mode to copy.
+-- GUI-style Ctrl-C/Ctrl-V. Visual paste deletes to the blackhole first, since
+-- plain `p` with unnamedplus would clobber "+ with the text it replaced.
 map("v", "<C-c>", '"+y', { desc = "Copy selection to system clipboard" })
 map("v", "<C-v>", '"_d"+P', { desc = "Replace selection with system clipboard" })
 map("i", "<C-v>", "<C-r>+", { desc = "Paste system clipboard" })

@@ -1,31 +1,18 @@
-{{- /* WSL only. nvim-treesitter's main branch shells out to the tree-sitter
-       CLI for `tree-sitter build` -- see dot_config/nvim/lua/plugins/treesitter.lua,
-       which installs 13 parsers. Without the CLI every one of them fails with
-       ENOENT: no such file or directory (cmd): 'tree-sitter'.
-
-       The CachyOS box gets this from pacman (tree-sitter-cli in
-       .chezmoidata/packages.yaml) and Windows from 46-tree-sitter-cli.ps1.
-       The WSL side has no package management at all, so fetch the release
-       binary directly, the same way 35-wsl-win32yank.sh does.
-
-       run_onchange rather than run_once so bumping VERSION/SHA256 below
-       re-runs this. */ -}}
+{{- /* WSL only. nvim-treesitter needs the tree-sitter CLI, which pacman
+       provides on CachyOS -- but the WSL side has no package management, so
+       fetch the release binary the way 35-wsl-win32yank.sh does. */ -}}
 {{- if and (eq .chezmoi.os "linux") (contains "microsoft" (lower (default "" .chezmoi.kernel.osrelease))) -}}
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Pinned rather than tracking /releases/latest/download so a fresh box always
-# gets the build this SHA256 was verified against. The hash is of the
-# *extracted* binary, not the .gz, so the already-installed check can reuse
-# it. Verified against the official release asset.
+# Pinned, and the hash is of the extracted binary so the check below reuses it.
 VERSION=v0.27.0
 SHA256=5a228811cdb3a01b7e4dd493c5fc5e05b0040a49ffede94e866c4c58ff2605db
 URL="https://github.com/tree-sitter/tree-sitter/releases/download/${VERSION}/tree-sitter-linux-x64.gz"
 
 log() { printf '\033[1;35m::\033[0m %s\n' "$*"; }
 
-# A native Linux ELF, unlike win32yank -- nothing here crosses the filesystem
-# bridge, so it lives on ext4. .zshrc already puts ~/.local/bin on $PATH.
+# A native ELF, unlike win32yank, so it lives on ext4. .zshrc has ~/.local/bin on $PATH.
 TARGET="$HOME/.local/bin/tree-sitter"
 
 if [ -f "$TARGET" ] && [ "$(sha256sum "$TARGET" | cut -d' ' -f1)" = "$SHA256" ]; then
@@ -44,8 +31,7 @@ log "installing tree-sitter $VERSION -> $TARGET"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
-# The .gz asset rather than the .zip on purpose: gzip is always present, and
-# unzip is not -- that is exactly what 35-wsl-win32yank.sh had to work around.
+# .gz not .zip: gzip is always present, unzip is not.
 curl -fsSL "$URL" -o "$tmp/ts.gz"
 gzip -d "$tmp/ts.gz"
 
