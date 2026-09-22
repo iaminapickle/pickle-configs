@@ -91,8 +91,10 @@ end
 -- Shell
 ---------------------------------------------------------------------------
 -- Windows drops straight into the WSL box; Linux uses the login shell.
+-- No `-d <distro>` on purpose: the name differs per machine (Ubuntu-22.04
+-- at work, 24.04 at home), so this follows whatever the default distro is.
 if is_windows then
-	config.default_prog = { "wsl.exe", "~", "-d", "Ubuntu" }
+	config.default_prog = { "wsl.exe", "~" }
 else
 	config.default_prog = { "/usr/bin/zsh", "-l" }
 	config.window_background_opacity = 0.85
@@ -140,28 +142,6 @@ end
 ---------------------------------------------------------------------------
 -- Keys
 ---------------------------------------------------------------------------
--- Does the clipboard hold an image? The probe differs per platform; both
--- return "" on failure so the paste falls back to text.
-local function clipboard_has_image()
-	local ok, out = pcall(function()
-		local success, stdout
-		if is_windows then
-			success, stdout = wezterm.run_child_process({
-				"powershell.exe",
-				"-NoProfile",
-				"-NonInteractive",
-				"-Command",
-				"Add-Type -AssemblyName System.Windows.Forms; "
-					.. "if ([System.Windows.Forms.Clipboard]::ContainsImage()) { Write-Output 'image' }",
-			})
-		else
-			success, stdout = wezterm.run_child_process({ "wl-paste", "--list-types" })
-		end
-		return success and stdout or ""
-	end)
-	return ok and out:find("image", 1, true) ~= nil
-end
-
 config.keys = {
 	{
 		key = "l",
@@ -169,18 +149,20 @@ config.keys = {
 		action = act.ShowLauncher,
 	},
 	{
+		-- Aliased straight to PasteFrom with no probe beforehand -- same action
+		-- Ctrl+Shift+V's default binding uses, so it's exactly as fast. Used to
+		-- shell out to a per-keypress powershell.exe image-clipboard check
+		-- first (add ~250-300ms every press); that's gone now, so Ctrl+Alt+V
+		-- below is the escape hatch for pasting an image into an app that reads
+		-- Ctrl+V itself (e.g. Claude Code).
 		key = "v",
 		mods = "CTRL",
-		action = wezterm.action_callback(function(window, pane)
-			-- If the clipboard holds an image, pass the raw keystroke through
-			-- so apps that read Ctrl+V themselves (e.g. Claude Code's image
-			-- paste) can still handle it; otherwise paste text directly.
-			if clipboard_has_image() then
-				window:perform_action(act.SendKey({ key = "v", mods = "CTRL" }), pane)
-			else
-				window:perform_action(act.PasteFrom("Clipboard"), pane)
-			end
-		end),
+		action = act.PasteFrom("Clipboard"),
+	},
+	{
+		key = "v",
+		mods = "CTRL|ALT",
+		action = act.SendKey({ key = "v", mods = "CTRL" }),
 	},
 }
 

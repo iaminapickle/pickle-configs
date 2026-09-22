@@ -17,9 +17,11 @@
 	email = {{ .email }}
 	name = {{ .name }}
 [alias]
-	clh = "!git rev-parse HEAD | {{ $clip }}"
-	clh2 = "!git rev-parse HEAD~1 | {{ $clip }}"
-	clh3 = "!git rev-parse HEAD~2 | {{ $clip }}"
+	; tr strips rev-parse's trailing newline -- without it the hash pastes
+	; with a line break on the end, which breaks pasting into a prompt or URL.
+	clh = "!git rev-parse HEAD | tr -d '\\n' | {{ $clip }}"
+	clh2 = "!git rev-parse HEAD~1 | tr -d '\\n' | {{ $clip }}"
+	clh3 = "!git rev-parse HEAD~2 | tr -d '\\n' | {{ $clip }}"
 [interactive]
 	diffFilter = delta --color-only
 [delta]

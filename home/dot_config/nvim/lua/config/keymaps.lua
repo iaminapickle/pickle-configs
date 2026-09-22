@@ -50,6 +50,7 @@ map("n", "<C-w>'", "<C-w>l")
 map("v", "<C-c>", '"+y', { desc = "Copy selection to system clipboard" })
 map("v", "<C-v>", '"_d"+P', { desc = "Replace selection with system clipboard" })
 map("i", "<C-v>", "<C-r>+", { desc = "Paste system clipboard" })
+map("n", "<C-v>", '"+P', { desc = "Paste system clipboard" })
 
 -- Copy current file's path (relative to cwd) to the system clipboard
 map("n", "<leader>yf", function()
