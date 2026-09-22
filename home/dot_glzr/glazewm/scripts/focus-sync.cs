@@ -8,9 +8,10 @@
 //
 // 2. An empty workspace holds no real foreground, so a closing overlay like
 //    the Command Palette hands it back to the last real window on the other
-//    monitor and a window opened in that moment lands there. That flick is
-//    tens of milliseconds, so the workspace that held focus for StableMs wins
-//    and the window is moved back.
+//    monitor and a window opened in that moment lands there. The pointer
+//    stays put through such a flick while cursor_jump warps it on every
+//    deliberate change of monitor, so focus the pointer didn't follow is
+//    discounted and the window is moved back.
 //
 // 3. GlazeWM can focus a minimized window, which nothing visibly focuses and
 //    `focus --direction` won't move off. Focus is handed to a window on that
@@ -31,7 +32,8 @@ class FocusSync
 {
     const string Endpoint = "ws://127.0.0.1:6123";
     const int PollMs = 100;
-    const int StableMs = 125;
+    const int SettledMs = 3000;
+    const int WarpMs = 40;
     const int SettleMs = 120;
     const int FocusAttempts = 3;
     const int HistoryLimit = 16;
@@ -45,6 +47,14 @@ class FocusSync
     [DllImport("user32.dll")]
     static extern bool GetCursorPos(out POINT point);
 
+    [DllImport("user32.dll")]
+    static extern IntPtr MonitorFromPoint(POINT point, uint flags);
+
+    [DllImport("user32.dll")]
+    static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint flags);
+
+    const uint MonitorNearest = 2;
+
     [StructLayout(LayoutKind.Sequential)]
     struct POINT
     {
@@ -56,6 +66,7 @@ class FocusSync
     {
         public string Id;
         public DateTime At;
+        public bool Voluntary;
     }
 
     static readonly List<Focus> history = new List<Focus>();
@@ -184,8 +195,8 @@ class FocusSync
         }
     }
 
-    // No history until the first focus_changed, so seed it as long-stable:
-    // it's the only clue to where the user is.
+    // No history until the first focus_changed, so seed it: it's the only
+    // clue to where the user is.
     static void SeedHistory()
     {
         try
@@ -206,7 +217,8 @@ class FocusSync
                         history.Add(new Focus
                         {
                             Id = Str(workspace, "id"),
-                            At = DateTime.UtcNow - TimeSpan.FromSeconds(1),
+                            At = DateTime.UtcNow,
+                            Voluntary = true,
                         });
                     }
                     return;
@@ -230,7 +242,7 @@ class FocusSync
 
         if (eventType == "focus_changed")
         {
-            RecordFocus(Str(container, "id"));
+            RecordFocus(container);
             if (IsMinimized(container)) Unstick(Str(container, "id"));
         }
         else if (eventType == "window_managed")
@@ -242,19 +254,60 @@ class FocusSync
         }
     }
 
-    static void RecordFocus(string id)
+    static void RecordFocus(Dictionary<string, object> container)
     {
+        string id = Str(container, "id");
         if (id == null) return;
 
         lock (history)
         {
-            history.Add(new Focus { Id = id, At = DateTime.UtcNow });
+            history.Add(new Focus
+            {
+                Id = id,
+                At = DateTime.UtcNow,
+                Voluntary = PointerFollowed(container),
+            });
             if (history.Count > HistoryLimit) history.RemoveAt(0);
         }
     }
 
-    // Newest id that isn't the new window and has held focus for StableMs,
-    // falling back to the newest other id when focus has only just settled.
+    // cursor_jump warps the pointer on every deliberate change of monitor, so
+    // a focus change the pointer didn't follow wasn't asked for. The warp is
+    // applied just after the event, hence the second look.
+    static bool PointerFollowed(Dictionary<string, object> container)
+    {
+        IntPtr monitor = MonitorOf(container);
+        if (monitor == IntPtr.Zero) return true;
+
+        if (PointerMonitor() == monitor) return true;
+        Thread.Sleep(WarpMs);
+        return PointerMonitor() == monitor;
+    }
+
+    static IntPtr PointerMonitor()
+    {
+        POINT cursor;
+        if (!GetCursorPos(out cursor)) return IntPtr.Zero;
+        return MonitorFromPoint(cursor, MonitorNearest);
+    }
+
+    // Windows have a handle; a workspace is only a rect, so use its middle.
+    static IntPtr MonitorOf(Dictionary<string, object> container)
+    {
+        long handle = (long)Num(container, "handle");
+        if (handle != 0) return MonitorFromWindow(new IntPtr(handle), MonitorNearest);
+
+        var middle = new POINT
+        {
+            X = (int)(Num(container, "x") + Num(container, "width") / 2),
+            Y = (int)(Num(container, "y") + Num(container, "height") / 2),
+        };
+        return MonitorFromPoint(middle, MonitorNearest);
+    }
+
+    // Newest id that isn't the new window and that the user asked for. A
+    // flick is only discounted while it's fresh: after SettledMs the focus is
+    // where the user is working, whatever put it there.
     static string StableFocus(string windowId)
     {
         var now = DateTime.UtcNow;
@@ -267,7 +320,8 @@ class FocusSync
             {
                 if (history[i].Id == windowId) continue;
                 if (newest == null) newest = history[i].Id;
-                if ((now - history[i].At).TotalMilliseconds >= StableMs)
+                if (history[i].Voluntary ||
+                    (now - history[i].At).TotalMilliseconds >= SettledMs)
                     return history[i].Id;
             }
 
@@ -292,15 +346,15 @@ class FocusSync
             string intended = WorkspaceOf(workspaces, StableFocus(windowId));
             if (intended == null || intended == landed) return;
 
-            // Focus the workspace first: moving a focused window hands focus
-            // back to the workspace it left, and the border effect follows
-            // that instead of the window.
-            session.Ask("command focus --workspace " + intended);
-
-            // By id, since `move` acts on whatever holds focus and
-            // `focus --workspace` lands on that workspace's last focused.
+            // By id, since `move` acts on whatever holds focus.
             session.Ask("command --id " + windowId + " move --workspace " + intended);
             FocusWindow(session, windowId);
+
+            // Moving hands focus to the workspace the window left and this
+            // takes it back, too fast for GlazeWM to repaint both borders: it
+            // only ever repaints the focused window and the one before it.
+            // Reloading the config is what re-applies them all.
+            session.Ask("command wm-reload-config");
         }
     }
 
