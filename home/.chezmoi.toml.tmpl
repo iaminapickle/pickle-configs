@@ -63,3 +63,16 @@ workingTree = {{ .chezmoi.workingTree | quote }}
 [git]
     autoCommit = false
     autoPush   = false
+
+{{ if eq .chezmoi.os "windows" -}}
+{{/* Windows client boxes ship with an execution policy of Restricted, which  */}}
+{{/* blocks the .ps1 files chezmoi writes to %TEMP% and then runs -- it fails */}}
+{{/* with "running scripts is disabled on this system" and the apply aborts.  */}}
+{{/* Bypass is passed on the invocation, so it applies to that one process    */}}
+{{/* only: no elevation needed and the machine's own policy is left alone.    */}}
+{{/* Otherwise this is chezmoi's own default for .ps1; -File must stay last,  */}}
+{{/* because chezmoi appends the script path after these args.                */}}
+[interpreters.ps1]
+    command = "powershell"
+    args    = ["-NoLogo", "-ExecutionPolicy", "Bypass", "-File"]
+{{ end -}}
