@@ -27,6 +27,8 @@ over later and re-run `chezmoi apply` to pick up the rest.
 
 ## Windows
 
+Turn on Developer Mode first: **Settings -> System -> For developers**.
+
 ```powershell
 irm https://raw.githubusercontent.com/iaminapickle/pickle-configs/main/bootstrap.ps1 | iex
 ```

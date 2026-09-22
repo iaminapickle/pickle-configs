@@ -207,10 +207,11 @@ packages:
         - ajeetdsouza.zoxide
         - dandavison.delta
 
-        # nvim-treesitter compiles its parsers on install and a stock Windows
-        # box has no C compiler. zig is the smallest toolchain it accepts --
-        # no Visual Studio Build Tools needed. See lua/plugins/treesitter.lua,
-        # which installs 13 parsers including c and cpp.
+        # The C compiler nvim-treesitter's parser build drives. zig is the
+        # smallest toolchain it accepts -- no Visual Studio Build Tools. This
+        # is only half of what treesitter needs: the tree-sitter CLI that
+        # invokes it has no winget package, so 46-tree-sitter-cli.ps1 fetches
+        # that separately. See lua/plugins/treesitter.lua (13 parsers).
         - zig.zig
         # pdftotext, for the *.pdf BufReadCmd preview in lua/config/pdf.lua.
         # Drop this line and everything still works except opening a PDF.

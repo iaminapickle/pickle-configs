@@ -20,6 +20,26 @@ if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
     throw "winget not found. Install 'App Installer' from the Microsoft Store first."
 }
 
+# Portable packages (delta, rg, bat, fzf, zoxide, zig) are "installed" by
+# dropping a symlink in %LOCALAPPDATA%\Microsoft\WinGet\Links, which winget
+# puts on the user PATH. Creating a symlink as a non-admin requires Developer
+# Mode; without it winget logs "Failed to create symlink", still exits 0, and
+# the binaries end up installed but unreachable -- delta missing breaks
+# git's pager, and zig missing stops nvim-treesitter compiling its parsers.
+#
+# Checked before the install loop so it can be fixed before anything is
+# downloaded. Warn rather than throw: everything that ships an installer
+# (Neovim, Starship, Git, wezterm, GlazeWM, Zebar) lands in Program Files and
+# works either way.
+$devMode = (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock' `
+    -Name AllowDevelopmentWithoutDevLicense -ErrorAction SilentlyContinue).AllowDevelopmentWithoutDevLicense
+if ($devMode -ne 1) {
+    Warn "Developer Mode is off (Settings -> System -> For developers)."
+    Warn "winget cannot create its Links symlinks without it, so portable"
+    Warn "packages install but never reach PATH. Enable it, then re-run the"
+    Warn "affected installs with --force to create the links."
+}
+
 $WingetPkgs = @(
 {{- range $group, $pkgs := .packages.windows.winget }}
     # {{ $group }}
