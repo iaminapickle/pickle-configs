@@ -122,8 +122,9 @@ class FocusSync
         string type = container["type"] as string;
         if (type != "workspace") return;
 
-        var children = container["children"] as object[];
-        if (children != null && children.Length > 0) return; // has windows, real focus already correct
+        // Minimized windows sit at (-32000,-32000), on no monitor, so a workspace
+        // holding only those still needs the helper to give the monitor foreground.
+        if (HasVisibleWindow(container["children"] as object[])) return;
 
         double x = Convert.ToDouble(container["x"]);
         double y = Convert.ToDouble(container["y"]);
@@ -136,6 +137,35 @@ class FocusSync
         {
             form.ForceForegroundAt(targetX, targetY);
         });
+    }
+
+    static bool HasVisibleWindow(object[] children)
+    {
+        if (children == null) return false;
+
+        foreach (var childObj in children)
+        {
+            var child = childObj as System.Collections.Generic.Dictionary<string, object>;
+            if (child == null) continue;
+
+            object typeObj;
+            child.TryGetValue("type", out typeObj);
+            if ((typeObj as string) == "window")
+            {
+                object stateObj;
+                if (!child.TryGetValue("state", out stateObj)) return true;
+                var state = stateObj as System.Collections.Generic.Dictionary<string, object>;
+                object stateType;
+                if (state == null || !state.TryGetValue("type", out stateType)) return true;
+                if ((stateType as string) != "minimized") return true;
+            }
+            else if (HasVisibleWindow(child["children"] as object[]))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     static void Send(ClientWebSocket ws, string message)
