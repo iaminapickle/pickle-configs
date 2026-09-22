@@ -77,7 +77,7 @@ alias srczrc="source ~/.zshrc"
 
 # Desktop-only; both shell out to things that only exist on the CachyOS box.
 if command -v openvpn3 >/dev/null 2>&1; then
-    alias vpn="openvpn3 session-start --config ~/configs/work.ovpn"
+    alias vpn="openvpn3 session-start --config ~/.config/openvpn/work.ovpn"
     alias vpncheck="openvpn3 sessions-list"
 fi
 if command -v efibootmgr >/dev/null 2>&1; then

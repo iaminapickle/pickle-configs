@@ -21,10 +21,6 @@ for group in input realtime video; do
     fi
 done
 
-# ~/configs holds the (encrypted, chezmoi-managed) OpenVPN profile referenced
-# by the `vpn` alias in .zshrc
-mkdir -p "$HOME/configs"
-
 # Work repos live here; ~/.gitconfig's includeIf keys off this path, so the
 # directory has to exist for the split to mean anything on a fresh box.
 mkdir -p "$HOME/{{ .workDir }}"
