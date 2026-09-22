@@ -50,18 +50,31 @@ target="$win_dir/win32yank.exe"
 if [ -f "$target" ] && [ "$(sha256sum "$target" | cut -d' ' -f1)" = "$SHA256" ]; then
     log "win32yank $VERSION already present at $target"
 else
-    for t in curl unzip sha256sum; do
+    for t in curl sha256sum; do
         if ! command -v "$t" >/dev/null; then
             log "$t not installed -- skipping win32yank"
             exit 0
         fi
     done
 
+    # There is no package management on the WSL side (10-packages.sh excludes
+    # it), so unzip cannot be declared as a dependency anywhere -- and a stock
+    # Ubuntu has no unzip, bsdtar or 7z. python3 is always there and its
+    # zipfile module is stdlib, so fall back to it rather than bailing out.
+    if command -v unzip >/dev/null; then
+        extract() { unzip -q -o "$1" -d "$2"; }
+    elif command -v python3 >/dev/null; then
+        extract() { python3 -m zipfile -e "$1" "$2"; }
+    else
+        log "no unzip and no python3 -- skipping win32yank"
+        exit 0
+    fi
+
     log "installing win32yank $VERSION -> $target"
     tmp="$(mktemp -d)"
     trap 'rm -rf "$tmp"' EXIT
     curl -fsSL "$URL" -o "$tmp/win32yank.zip"
-    unzip -q -o "$tmp/win32yank.zip" -d "$tmp/x"
+    extract "$tmp/win32yank.zip" "$tmp/x"
 
     exe="$(find "$tmp/x" -name win32yank.exe -type f -print -quit)"
     if [ -z "$exe" ]; then
