@@ -62,8 +62,10 @@ foreach ($b in $builds) {
     if ($LASTEXITCODE -ne 0) { throw "csc failed for $src (exit $LASTEXITCODE)" }
 }
 
+# Reloading the config doesn't re-run startup_commands, so restart it here.
 if ($wasRunning) {
-    Log "focus-sync was stopped -- reload GlazeWM (lwin+shift+r) to restart it"
+    Log "restarting focus-sync"
+    Start-Process (Join-Path $scripts 'focus-sync.exe')
 }
 
 Log "GlazeWM helpers built"
