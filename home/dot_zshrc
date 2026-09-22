@@ -148,7 +148,8 @@ if (-not [Fw]::EnablePrivilege('SeSystemEnvironmentPrivilege')) {
 }
 
 Set-Bli 'LoaderEntryOneShot'         $entry
-Set-Bli 'LoaderConfigTimeoutOneShot' '0'
+# 'menu-disabled' boots immediately; a one-shot '0' means wait indefinitely.
+Set-Bli 'LoaderConfigTimeoutOneShot' 'menu-disabled'
 
 $raw = (& bcdedit /enum firmware) -join "`n"
 
