@@ -61,6 +61,7 @@ else
 		cursor_fg = "#2A211C",
 		selection_bg = "#C3DCFF",
 		selection_fg = "none",
+		scrollbar_thumb = "#554840",
 		ansi = {
 			"#000000", -- black
 			"#CC0000", -- red
@@ -94,7 +95,6 @@ if is_windows then
 else
 	config.default_prog = { "/usr/bin/zsh", "-l" }
 	config.window_background_opacity = 0.85
-	config.enable_scroll_bar = true
 end
 
 ---------------------------------------------------------------------------
@@ -106,6 +106,7 @@ config.font = wezterm.font_with_fallback({
 })
 config.adjust_window_size_when_changing_font_size = false
 config.enable_tab_bar = false
+config.enable_scroll_bar = true
 config.window_close_confirmation = "NeverPrompt"
 config.audible_bell = "Disabled"
 
