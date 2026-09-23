@@ -1,0 +1,9 @@
+# These configs are consumed on Linux. Windows editors reaching into the WSL
+# tree were silently rewriting scripts to CRLF, which breaks the shebang line.
+* text=auto eol=lf
+
+# Windows-side bootstrap: PowerShell expects CRLF.
+bootstrap.ps1 text eol=crlf
+
+# Armoured age blobs -- any EOL rewriting makes them undecryptable.
+*.age -text
