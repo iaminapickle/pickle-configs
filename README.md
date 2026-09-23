@@ -57,7 +57,10 @@ chezmoi init --apply /path/to/pickle-configs
   talking to GlazeWM's WebSocket IPC directly (fast enough to sit under a
   keypress); `focus-sync.exe` forces foreground onto the monitor GlazeWM
   thinks is focused, because hovering onto an empty monitor updates GlazeWM's
-  internal state but not Win32's real foreground window. Both are dropped on a single-monitor machine via the `multiMonitor` init
+  internal state but not Win32's real foreground window. It also watches
+  `WM_DISPLAYCHANGE` and restarts Zebar when a display comes back without a
+  bar: a KVM switch drops the monitor's EDID, so Windows destroys the bar's
+  window, and nothing re-runs `startup_commands` when it returns. Both are dropped on a single-monitor machine via the `multiMonitor` init
   prompt, since the per-monitor routing they exist for is a no-op with one monitor.
 
 - **Day to day:**

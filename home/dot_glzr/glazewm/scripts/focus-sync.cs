@@ -17,11 +17,17 @@
 //    `focus --direction` won't move off. Focus is handed to a window on that
 //    workspace that isn't minimized.
 //
+// 4. A KVM switch drops the display's EDID, so Windows removes the monitor
+//    and destroys the Zebar window on it, and nothing re-runs
+//    general.startup_commands when it returns. WM_DISPLAYCHANGE is watched
+//    and Zebar restarted when a monitor is left without a bar.
+//
 // Foreground is only read, never set: an earlier version forced it onto an
 // invisible helper window, which denied GlazeWM the rights it needs to focus
 // a hovered window.
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Net.WebSockets;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -37,6 +43,13 @@ class FocusSync
     const int SettleMs = 120;
     const int FocusAttempts = 3;
     const int HistoryLimit = 16;
+    const uint WmDisplayChange = 0x007E;
+    const uint WsExNoActivate = 0x08000000;
+    const uint WsExToolWindow = 0x00000080;
+    const string WatcherClass = "FocusSyncDisplayWatcher";
+    const int DisplaySettleMs = 2000;
+    const int DisplayPollMs = 250;
+    const int ZebarRestartMs = 400;
 
     [DllImport("user32.dll")]
     static extern IntPtr GetForegroundWindow();
@@ -62,6 +75,73 @@ class FocusSync
         public int Y;
     }
 
+    delegate IntPtr WindowProc(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    delegate bool MonitorEnumProc(IntPtr monitor, IntPtr hdc, IntPtr rect, IntPtr data);
+
+    delegate bool EnumWindowsProc(IntPtr hwnd, IntPtr data);
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    struct WNDCLASS
+    {
+        public uint style;
+        public WindowProc lpfnWndProc;
+        public int cbClsExtra;
+        public int cbWndExtra;
+        public IntPtr hInstance;
+        public IntPtr hIcon;
+        public IntPtr hCursor;
+        public IntPtr hbrBackground;
+        public string lpszMenuName;
+        public string lpszClassName;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct MSG
+    {
+        public IntPtr hwnd;
+        public uint message;
+        public IntPtr wParam;
+        public IntPtr lParam;
+        public uint time;
+        public POINT pt;
+    }
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    static extern ushort RegisterClass(ref WNDCLASS wndClass);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    static extern IntPtr CreateWindowEx(uint exStyle, string className, string windowName,
+        uint style, int x, int y, int width, int height, IntPtr parent, IntPtr menu,
+        IntPtr instance, IntPtr param);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    static extern IntPtr DefWindowProc(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    static extern int GetMessage(out MSG msg, IntPtr hwnd, uint filterMin, uint filterMax);
+
+    [DllImport("user32.dll")]
+    static extern bool TranslateMessage(ref MSG msg);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    static extern IntPtr DispatchMessage(ref MSG msg);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+    static extern IntPtr GetModuleHandle(string name);
+
+    [DllImport("user32.dll")]
+    static extern bool EnumDisplayMonitors(IntPtr hdc, IntPtr clip, MonitorEnumProc callback, IntPtr data);
+
+    [DllImport("user32.dll")]
+    static extern bool EnumWindows(EnumWindowsProc callback, IntPtr data);
+
+    [DllImport("user32.dll")]
+    static extern bool IsWindowVisible(IntPtr hwnd);
+
+    [DllImport("user32.dll")]
+    static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint processId);
+
     class Focus
     {
         public string Id;
@@ -71,11 +151,25 @@ class FocusSync
 
     static readonly List<Focus> history = new List<Focus>();
 
+    // A field, not a local: the GC would collect the delegate while Windows
+    // still held the pointer the class was registered with.
+    static WindowProc watcherProc;
+    static long displayChangedAt;
+
     static void Main()
     {
         var events = new Thread(EventLoop);
         events.IsBackground = true;
         events.Start();
+
+        var displays = new Thread(WatchDisplays);
+        displays.IsBackground = true;
+        displays.SetApartmentState(ApartmentState.STA);
+        displays.Start();
+
+        var bar = new Thread(ZebarLoop);
+        bar.IsBackground = true;
+        bar.Start();
 
         PollForeground();
     }
@@ -483,6 +577,173 @@ class FocusSync
         }
 
         return null;
+    }
+
+    // ---- 4. zebar after a display change ------------------------------------
+
+    // WM_DISPLAYCHANGE is a broadcast, and broadcasts only reach top-level
+    // windows, so this one is ordinary and merely never shown -- a
+    // message-only window would never hear it.
+    static void WatchDisplays()
+    {
+        watcherProc = WatcherWndProc;
+
+        var wndClass = new WNDCLASS
+        {
+            lpfnWndProc = watcherProc,
+            hInstance = GetModuleHandle(null),
+            lpszClassName = WatcherClass,
+        };
+
+        if (RegisterClass(ref wndClass) == 0)
+        {
+            Log("could not register display watcher: " + Marshal.GetLastWin32Error());
+            return;
+        }
+
+        // WS_EX_NOACTIVATE keeps it out of the focus order: a helper window
+        // that can take foreground is what broke hover-focus once already.
+        IntPtr hwnd = CreateWindowEx(WsExNoActivate | WsExToolWindow, WatcherClass, WatcherClass,
+                                     0, 0, 0, 0, 0, IntPtr.Zero, IntPtr.Zero,
+                                     GetModuleHandle(null), IntPtr.Zero);
+        if (hwnd == IntPtr.Zero)
+        {
+            Log("could not create display watcher: " + Marshal.GetLastWin32Error());
+            return;
+        }
+
+        MSG msg;
+        while (GetMessage(out msg, IntPtr.Zero, 0, 0) > 0)
+        {
+            TranslateMessage(ref msg);
+            DispatchMessage(ref msg);
+        }
+    }
+
+    static IntPtr WatcherWndProc(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam)
+    {
+        if (msg == WmDisplayChange)
+            Interlocked.Exchange(ref displayChangedAt, DateTime.UtcNow.Ticks);
+
+        return DefWindowProc(hwnd, msg, wParam, lParam);
+    }
+
+    // A switch emits a burst of WM_DISPLAYCHANGE and the monitors keep moving
+    // for a moment after the last one, so let it settle before looking. The
+    // work is done here rather than in the window procedure, which must not
+    // block the pump.
+    static void ZebarLoop()
+    {
+        while (true)
+        {
+            Thread.Sleep(DisplayPollMs);
+
+            long at = Interlocked.Read(ref displayChangedAt);
+            if (at == 0) continue;
+            if ((DateTime.UtcNow - new DateTime(at)).TotalMilliseconds < DisplaySettleMs) continue;
+
+            // Losing this to a newer message is the point: that one stays
+            // pending and gets its own full settle.
+            if (Interlocked.CompareExchange(ref displayChangedAt, 0, at) != at) continue;
+
+            try
+            {
+                SyncZebar();
+            }
+            catch (Exception ex)
+            {
+                Log("zebar sync error: " + ex.Message);
+            }
+        }
+    }
+
+    // Only when a monitor has no bar, so a resolution change, or the half of
+    // a switch that removes a display, doesn't restart it for nothing.
+    static void SyncZebar()
+    {
+        var covered = ZebarMonitors();
+
+        foreach (IntPtr monitor in CurrentMonitors())
+        {
+            if (covered.Contains(monitor)) continue;
+            RestartZebar();
+            return;
+        }
+    }
+
+    static List<IntPtr> CurrentMonitors()
+    {
+        var monitors = new List<IntPtr>();
+
+        MonitorEnumProc collect = delegate(IntPtr monitor, IntPtr hdc, IntPtr rect, IntPtr data)
+        {
+            monitors.Add(monitor);
+            return true;
+        };
+        EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero, collect, IntPtr.Zero);
+
+        return monitors;
+    }
+
+    // Zebar's widgets are one window per monitor, so which monitors its
+    // windows sit on is the same question as which ones still have a bar.
+    static HashSet<IntPtr> ZebarMonitors()
+    {
+        var monitors = new HashSet<IntPtr>();
+
+        var pids = new HashSet<uint>();
+        foreach (var process in Process.GetProcessesByName("zebar"))
+            pids.Add((uint)process.Id);
+        if (pids.Count == 0) return monitors;
+
+        EnumWindowsProc collect = delegate(IntPtr hwnd, IntPtr data)
+        {
+            uint pid;
+            GetWindowThreadProcessId(hwnd, out pid);
+            if (pids.Contains(pid) && IsWindowVisible(hwnd))
+                monitors.Add(MonitorFromWindow(hwnd, MonitorNearest));
+            return true;
+        };
+        EnumWindows(collect, IntPtr.Zero);
+
+        return monitors;
+    }
+
+    // /T because zebar's WebView2 children outlive it and would pile up over
+    // a day of switching.
+    static void RestartZebar()
+    {
+        Log("a monitor was left without a bar, restarting zebar");
+
+        Run("taskkill", "/IM zebar.exe /F /T");
+        Thread.Sleep(ZebarRestartMs);
+        Run(ZebarPath(), "");
+    }
+
+    // zebar resolves on PATH for GlazeWM's shell-exec, but prefer the
+    // installed path: this is a bare CreateProcess with no shell behind it.
+    static string ZebarPath()
+    {
+        string installed = System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            @"glzr.io\Zebar\zebar.exe");
+
+        return System.IO.File.Exists(installed) ? installed : "zebar";
+    }
+
+    static void Run(string file, string args)
+    {
+        try
+        {
+            var start = new ProcessStartInfo(file, args);
+            start.UseShellExecute = false;
+            start.CreateNoWindow = true;
+            Process.Start(start);
+        }
+        catch (Exception ex)
+        {
+            Log("could not run " + file + ": " + ex.Message);
+        }
     }
 
     // ---- IPC ---------------------------------------------------------------
