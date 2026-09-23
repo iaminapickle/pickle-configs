@@ -4,10 +4,10 @@
 # 4.x, whose csc.exe ships with Windows, so there is no toolchain to install.
 # The digests below are what trigger a rebuild:
 #   workspace-nav.cs {{ include "dot_glzr/glazewm/scripts/workspace-nav.cs" | sha256sum }}
-{{ if .multiMonitor -}}
 #   focus-sync.cs    {{ include "dot_glzr/glazewm/scripts/focus-sync.cs" | sha256sum }}
 #   focus-dir.cs     {{ include "dot_glzr/glazewm/scripts/focus-dir.cs" | sha256sum }}
-{{ end -}}
+#   wm-refresh.cs    {{ include "dot_glzr/glazewm/scripts/wm-refresh.cs" | sha256sum }}
+#   wm-watch.cs      {{ include "dot_glzr/glazewm/scripts/wm-watch.cs" | sha256sum }}
 
 $ErrorActionPreference = 'Stop'
 
@@ -20,30 +20,31 @@ $csc = Get-ChildItem 'C:\Windows\Microsoft.NET\Framework64\v4.*\csc.exe' -ErrorA
        Select-Object -Last 1
 if (-not $csc) {
     Write-Warning "no .NET Framework 4.x csc.exe found -- skipping GlazeWM helper build."
-    Write-Warning "workspace-nav.exe and focus-sync.exe will be missing; the lwin+N"
-    Write-Warning "workspace bindings and empty-monitor focus fix won't work until built."
+    Write-Warning "the helpers will be missing, so the lwin+N workspace bindings, the"
+    Write-Warning "empty-monitor focus fix and the automatic dock/undock restart won't"
+    Write-Warning "work until they are built."
     return
 }
 
-{{ if .multiMonitor -}}
-# focus-sync runs persistently, so its .exe is locked while GlazeWM is up.
-$wasRunning = [bool](Get-Process focus-sync -ErrorAction SilentlyContinue)
-if ($wasRunning) {
-    Log "stopping focus-sync to unlock its binary"
-    Stop-Process -Name focus-sync -Force -ErrorAction SilentlyContinue
-    Start-Sleep -Milliseconds 300
+# focus-sync and wm-watch run persistently, so their .exe are locked while
+# GlazeWM is up.
+$resident = @{}
+foreach ($name in 'focus-sync', 'wm-watch') {
+    $resident[$name] = [bool](Get-Process $name -ErrorAction SilentlyContinue)
+    if ($resident[$name]) {
+        Log "stopping $name to unlock its binary"
+        Stop-Process -Name $name -Force -ErrorAction SilentlyContinue
+    }
 }
-{{ else -}}
-$wasRunning = $false
-{{ end -}}
+if ($resident.Values -contains $true) { Start-Sleep -Milliseconds 300 }
 
 # -target:winexe: a console binary would flash a window on every keypress.
 $builds = @(
     @{ Name = 'workspace-nav'; Refs = @('System.Web.Extensions.dll') }
-{{- if .multiMonitor }}
     ,@{ Name = 'focus-sync'; Refs = @('System.Web.Extensions.dll') }
     ,@{ Name = 'focus-dir'; Refs = @('System.Web.Extensions.dll') }
-{{- end }}
+    ,@{ Name = 'wm-refresh'; Refs = @('System.Web.Extensions.dll') }
+    ,@{ Name = 'wm-watch'; Refs = @() }
 )
 
 foreach ($b in $builds) {
@@ -63,10 +64,12 @@ foreach ($b in $builds) {
     if ($LASTEXITCODE -ne 0) { throw "csc failed for $src (exit $LASTEXITCODE)" }
 }
 
-# Reloading the config doesn't re-run startup_commands, so restart it here.
-if ($wasRunning) {
-    Log "restarting focus-sync"
-    Start-Process (Join-Path $scripts 'focus-sync.exe')
+# Reloading the config doesn't re-run startup_commands, so restart them here.
+foreach ($name in 'focus-sync', 'wm-watch') {
+    if ($resident[$name]) {
+        Log "restarting $name"
+        Start-Process (Join-Path $scripts "$name.exe")
+    }
 }
 
 Log "GlazeWM helpers built"

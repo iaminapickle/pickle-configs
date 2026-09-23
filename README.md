@@ -52,7 +52,7 @@ chezmoi init --apply /path/to/pickle-configs
   ACL by SID (account names are localized) every time, since a changed file
   picks the inherited ACL back up.
 
-- **GlazeWM's keybinding helpers exist to work around two Win32 quirks.**
+- **GlazeWM's keybinding helpers exist to work around Win32 quirks.**
   `workspace-nav.exe` resolves `lwin+N` to the right per-monitor workspace by
   talking to GlazeWM's WebSocket IPC directly (fast enough to sit under a
   keypress); `focus-sync.exe` forces foreground onto the monitor GlazeWM
@@ -60,8 +60,18 @@ chezmoi init --apply /path/to/pickle-configs
   internal state but not Win32's real foreground window. It also watches
   `WM_DISPLAYCHANGE` and restarts Zebar when a display comes back without a
   bar: a KVM switch drops the monitor's EDID, so Windows destroys the bar's
-  window, and nothing re-runs `startup_commands` when it returns. Both are dropped on a single-monitor machine via the `multiMonitor` init
-  prompt, since the per-monitor routing they exist for is a no-op with one monitor.
+  window, and nothing re-runs `startup_commands` when it returns.
+
+- **One GlazeWM config covers docked and undocked**, rather than a per-machine
+  setting -- the same laptop has two monitors at home and one at work, so the
+  layout is a runtime property. `workspace-nav.exe` reads the live monitor set
+  over IPC, and the 11-19 workspaces simply lie dormant with one monitor. What
+  a config can't do is survive the change in place: GlazeWM strands the
+  workspaces of a monitor that went away, and `wm-reload-config` won't rebuild
+  the mapping. `lwin+alt+m` runs `wm-refresh.exe` to restart GlazeWM and Zebar
+  and rebuild it. Only the Zebar half of that is automatic, above: a KVM
+  switch is indistinguishable from a real unplug, so a watcher that rebuilt
+  the whole WM would do it for a monitor count you are about to stop having.
 
 - **Day to day:**
   ```bash

@@ -23,6 +23,13 @@
 # Runtime / cache state that happens to live under .config
 .config/caelestia/monitors
 
+# Zebar's ledger of the marketplace packs this machine has unpacked: one
+# record per pack, holding the id and version whose content lives in the
+# sibling <packId>@<version> directory. The packs themselves aren't tracked,
+# so a restored ledger asserts installs that aren't there -- three of the four
+# records here already name packs with no directory on disk.
+.glzr/zebar/.marketplace
+
 # Built from the tracked .cs by 40-glazewm-scripts.ps1, never committed.
 .glzr/glazewm/scripts/*.exe
 
@@ -60,11 +67,7 @@
 .glzr/glazewm/scripts/*.exe
 .glzr/glazewm/errors.log
 .glzr/zebar/errors.log
-
-# focus-sync only matters with multiple monitors (see .chezmoi.toml.tmpl).
-{{ if not .multiMonitor }}
-.glzr/glazewm/scripts/focus-sync.cs
-{{ end }}
+.glzr/zebar/.marketplace
 {{ end }}
 
 # ---------------------------------------------------------------------------
