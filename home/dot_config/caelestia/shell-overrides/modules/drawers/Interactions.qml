@@ -71,14 +71,11 @@ CustomMouseArea {
         const x = event.x;
         const y = event.y;
 
-        // Open/close bar popouts (status icons, tray) on click instead of hover
+        // Open/close bar popouts (status icons, tray) on click instead of hover.
+        // Note tray icons handle their own clicks in TrayItem, since their MouseArea
+        // sits above this one and swallows the event before it gets here.
         if (x < bar.implicitWidth) {
-            if (popouts.hasCurrent) {
-                popouts.hasCurrent = false;
-                bar.closeTray();
-            } else {
-                bar.checkPopout(y);
-            }
+            bar.checkPopout(y);
         } else if (popouts.hasCurrent && (!popouts.currentName.startsWith("traymenu") || ((popouts.current as StackView)?.depth ?? 0) <= 1) && !inLeftPanel(panels.popoutsWrapper, x, y)) {
             popouts.hasCurrent = false;
             bar.closeTray();
@@ -98,10 +95,9 @@ CustomMouseArea {
             if (!utilitiesShortcutActive)
                 screenState.utilities = false;
 
-            if (!popouts.currentName.startsWith("traymenu") || ((popouts.current as StackView)?.depth ?? 0) <= 1) {
-                popouts.hasCurrent = false;
-                bar.closeTray();
-            }
+            // Bar popouts are click-to-open/click-to-close, so they deliberately
+            // survive the pointer leaving the window. Clicking outside dismisses them
+            // via the focus grab in ContentWindow.
 
             if (Config.bar.showOnHover)
                 bar.isHovered = false;

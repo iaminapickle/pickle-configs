@@ -3,9 +3,18 @@
        from the installed package and apply our patch on top. Reruns when
        either changes, so the fork does not go stale. */ -}}
 {{- if and (eq .chezmoi.os "linux") (not (contains "microsoft" (lower (default "" .chezmoi.kernel.osrelease)))) -}}
+{{- /* Digest of every override file, so adding or editing one reruns the script
+       without having to list each file here. */ -}}
+{{- $root := joinPath .chezmoi.sourceDir "dot_config/caelestia/shell-overrides" -}}
+{{- $overrides := "" -}}
+{{- range (glob (joinPath $root "**/*")) -}}
+{{-   if not (stat .).isDir -}}
+{{-     $overrides = printf "%s%s:%s\n" $overrides (trimPrefix $root .) (include . | sha256sum) -}}
+{{-   end -}}
+{{- end -}}
 #!/usr/bin/env bash
 # caelestia-shell: {{ output "sh" "-c" "pacman -Q caelestia-shell 2>/dev/null || true" | trim }}
-# overrides: {{ include "dot_config/caelestia/shell-overrides/modules/session/Content.qml" | sha256sum }} {{ include "dot_config/caelestia/shell-overrides/modules/drawers/Interactions.qml" | sha256sum }} {{ include "dot_config/caelestia/shell-overrides/modules/osd/Content.qml" | sha256sum }} {{ include "dot_config/caelestia/shell-overrides/modules/bar/components/OsIcon.qml" | sha256sum }}
+# overrides: {{ $overrides | sha256sum }}
 set -euo pipefail
 
 log() { printf '\033[1;35m::\033[0m %s\n' "$*"; }
