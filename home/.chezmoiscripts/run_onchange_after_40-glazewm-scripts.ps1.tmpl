@@ -26,24 +26,31 @@ if (-not $csc) {
     return
 }
 
-# focus-sync and wm-watch run persistently, so their .exe are locked while
-# GlazeWM is up.
-$resident = @{}
+# focus-sync runs persistently, so its .exe is locked while GlazeWM is up;
+# capture whether it was up so we can bring it back after rebuilding. wm-watch
+# is retired -- dock/undock is manual now -- so stop any stray instance to
+# unlock its binary and stop it auto-restarting, but never bring it back.
+$focusSyncRunning = [bool](Get-Process focus-sync -ErrorAction SilentlyContinue)
+$stopped = $false
 foreach ($name in 'focus-sync', 'wm-watch') {
-    $resident[$name] = [bool](Get-Process $name -ErrorAction SilentlyContinue)
-    if ($resident[$name]) {
+    if (Get-Process $name -ErrorAction SilentlyContinue) {
         Log "stopping $name to unlock its binary"
         Stop-Process -Name $name -Force -ErrorAction SilentlyContinue
+        $stopped = $true
     }
 }
-if ($resident.Values -contains $true) { Start-Sleep -Milliseconds 300 }
+if ($stopped) { Start-Sleep -Milliseconds 300 }
 
 # -target:winexe: a console binary would flash a window on every keypress.
+# workspace-nav parses GlazeWM's IPC JSON by hand instead of pulling in
+# System.Web.Extensions (JavaScriptSerializer), and is built x86 + ngen'd
+# below, because it is spawned on every workspace keypress. focus-sync and
+# focus-dir still use JavaScriptSerializer, hence their ref.
 $builds = @(
-    @{ Name = 'workspace-nav'; Refs = @('System.Web.Extensions.dll') }
+    @{ Name = 'workspace-nav'; Refs = @(); Platform = 'x86'; Ngen = $true }
     ,@{ Name = 'focus-sync'; Refs = @('System.Web.Extensions.dll') }
     ,@{ Name = 'focus-dir'; Refs = @('System.Web.Extensions.dll') }
-    ,@{ Name = 'wm-refresh'; Refs = @('System.Web.Extensions.dll') }
+    ,@{ Name = 'wm-refresh'; Refs = @() }
     ,@{ Name = 'wm-watch'; Refs = @() }
 )
 
@@ -56,20 +63,36 @@ foreach ($b in $builds) {
     }
 
     $cscArgs = @('-nologo', '-optimize+', '-target:winexe', "-out:$out")
+    if ($b.Platform) { $cscArgs += "-platform:$($b.Platform)" }
     $cscArgs += $b.Refs | ForEach-Object { "-reference:$_" }
     $cscArgs += $src
 
     Log "building $($b.Name).exe"
     & $csc.FullName @cscArgs
     if ($LASTEXITCODE -ne 0) { throw "csc failed for $src (exit $LASTEXITCODE)" }
+
+    # Precompile to a native image so the exe skips JIT at startup. Rebuilding
+    # invalidates any prior image, so this runs after every build. ngen needs
+    # an elevated apply; it's best-effort, so an unelevated apply still leaves a
+    # working (JITed) exe. 32-bit ngen to match the x86 build above.
+    if ($b.Ngen) {
+        $ngen = Get-ChildItem 'C:\Windows\Microsoft.NET\Framework\v4.*\ngen.exe' -ErrorAction SilentlyContinue |
+                Sort-Object FullName | Select-Object -Last 1
+        if ($ngen) {
+            Log "ngen $($b.Name).exe"
+            & $ngen.FullName install $out 2>$null | Out-Null
+            if ($LASTEXITCODE -ne 0) {
+                Write-Warning "ngen failed for $($b.Name).exe (run 'chezmoi apply' elevated to precompile it); using the JITed exe."
+            }
+        }
+    }
 }
 
-# Reloading the config doesn't re-run startup_commands, so restart them here.
-foreach ($name in 'focus-sync', 'wm-watch') {
-    if ($resident[$name]) {
-        Log "restarting $name"
-        Start-Process (Join-Path $scripts "$name.exe")
-    }
+# Reloading the config doesn't re-run startup_commands, so bring focus-sync
+# back if it was up. wm-watch is intentionally not restarted.
+if ($focusSyncRunning) {
+    Log "restarting focus-sync"
+    Start-Process (Join-Path $scripts 'focus-sync.exe')
 }
 
 Log "GlazeWM helpers built"

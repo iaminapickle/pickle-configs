@@ -4,10 +4,9 @@ general:
   # Example: The below command launches Zebar.
   # focus-sync.exe focuses a monitor when its bare desktop is clicked, which
   # GlazeWM can't do itself -- the desktop isn't a window it manages.
-  # wm-watch.exe presses lwin+alt+m for you, running wm-refresh.exe whenever a
-  # monitor appears. It outlives that restart, so starting it again here is a
-  # no-op.
-  startup_commands: ['shell-exec zebar', 'shell-exec %USERPROFILE%\.glzr\glazewm\scripts\focus-sync.exe', 'shell-exec %USERPROFILE%\.glzr\glazewm\scripts\wm-watch.exe']
+  # Monitor changes are no longer watched automatically; press lwin+alt+m
+  # (wm-refresh.exe) after docking or undocking to load the matching config.
+  startup_commands: ['shell-exec zebar', 'shell-exec %USERPROFILE%\.glzr\glazewm\scripts\focus-sync.exe']
 
   # Commands to run just before the WM is shutdown.
   # Example: The below command kills Zebar.
@@ -307,11 +306,12 @@ keybindings:
   - commands: ['wm-reload-config']
     bindings: ['lwin+shift+r', 'rwin+shift+r']
 
-  # Restart GlazeWM (and with it Zebar) to rebuild the monitor/workspace
-  # mapping. Press this after the monitor set changes -- plugging, unplugging,
-  # or a KVM switch that Windows saw as a disconnect. Deliberately manual: a
-  # watcher can't tell a KVM blip from a real undock, and guessing wrong
-  # rebuilds the WM for a monitor count you're about to stop having.
+  # Restart GlazeWM (and with it Zebar) and load the config that matches the
+  # current monitor count: config.single.yaml for one monitor (native, fast
+  # workspace bindings), config.dual.yaml for two or more (the per-monitor
+  # workspace-nav.exe bindings). Press this after the monitor set changes --
+  # plugging, unplugging, or a KVM switch Windows saw as a disconnect.
+  # Deliberately manual: a watcher can't tell a KVM blip from a real undock.
   - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\wm-refresh.exe']
     bindings: ['lwin+alt+m', 'rwin+alt+m']
 

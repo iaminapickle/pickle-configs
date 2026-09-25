@@ -1,0 +1,414 @@
+general:
+  # Commands to run when the WM has started. This is useful for running a
+  # script or launching another application.
+  # Example: The below command launches Zebar.
+  # focus-sync.exe focuses a monitor when its bare desktop is clicked, which
+  # GlazeWM can't do itself -- the desktop isn't a window it manages.
+  # Monitor changes are no longer watched automatically; press lwin+alt+m
+  # (wm-refresh.exe) after docking or undocking to load the matching config.
+  startup_commands: ['shell-exec zebar', 'shell-exec %USERPROFILE%\.glzr\glazewm\scripts\focus-sync.exe']
+
+  # Commands to run just before the WM is shutdown.
+  # Example: The below command kills Zebar.
+  # --hide-window: taskkill otherwise flashes a console on every shutdown.
+  shutdown_commands: ['shell-exec --hide-window taskkill /IM zebar.exe /F', 'shell-exec --hide-window taskkill /IM focus-sync.exe /F']
+
+  # Commands to run after the WM config is reloaded.
+  config_reload_commands: []
+
+  # Whether to automatically focus windows underneath the cursor.
+  # Off here: the pointer resting on the other monitor kept dragging focus off
+  # the workspace just switched to, so windows opened there and lwin+ bindings
+  # acted on a different window than the keyboard typed into. lwin+alt+k/'
+  # focus a monitor deliberately instead.
+  focus_follows_cursor: false
+
+  # Whether to switch back and forth between the previously focused
+  # workspace when focusing the current workspace.
+  toggle_workspace_on_refocus: false
+
+  cursor_jump:
+    # Whether to automatically move the cursor on the specified trigger.
+    enabled: true
+
+    # Trigger for cursor jump:
+    # - 'monitor_focus': Jump when focus changes between monitors.
+    # - 'window_focus': Jump when focus changes between windows.
+    trigger: 'monitor_focus'
+
+  # How windows should be hidden when switching workspaces.
+  # - 'cloak': Recommended. Hides windows with no animation.
+  # - 'hide': Legacy method (v3.5 and earlier) that has a brief animation,
+  # but has stability issues with some apps.
+  hide_method: 'cloak'
+
+  # Affects which windows get shown in the native Windows taskbar. Has no
+  # effect if `hide_method: 'hide'`.
+  # - 'true': Show all windows (regardless of workspace).
+  # - 'false': Only show windows from the currently shown workspaces.
+  show_all_in_taskbar: false
+
+gaps:
+  # Whether to scale the gaps with the DPI of the monitor.
+  scale_with_dpi: true
+
+  # Gap between adjacent windows.
+  inner_gap: '0px'
+
+  # Gap between windows and the screen edge.
+  outer_gap:
+    top: '40px'
+    right: '0px'
+    bottom: '0px'
+    left: '0px'
+
+window_effects:
+  # Visual effects to apply to the focused window.
+  focused_window:
+    # Highlight the window with a colored border.
+    # ** Exclusive to Windows 11 due to API limitations.
+    border:
+      enabled: true
+      color: '#a1a1a1'
+      # color: '#8dbcff'
+
+    # Remove the title bar from the window's frame. Note that this can
+    # cause rendering issues for some applications.
+    hide_title_bar:
+      enabled: false
+
+    # Change the corner style of the window's frame.
+    # ** Exclusive to Windows 11 due to API limitations.
+    corner_style:
+      enabled: false
+      # Allowed values: 'square', 'rounded', 'small_rounded'.
+      style: 'square'
+
+    # Change the transparency of the window.
+    transparency:
+      enabled: false
+      # Can be something like '95%' or '0.95' for slightly transparent windows.
+      # '0' or '0%' is fully transparent (and, by consequence, unfocusable).
+      opacity: '95%'
+
+  # Visual effects to apply to non-focused windows.
+  other_windows:
+    border:
+      enabled: true
+      color: '#000000'
+    hide_title_bar:
+      enabled: false
+    corner_style:
+      enabled: false
+      style: 'square'
+    transparency:
+      enabled: false
+      opacity: '0%'
+
+window_behavior:
+  # New windows are created in this state whenever possible.
+  # Allowed values: 'tiling', 'floating'.
+  initial_state: 'tiling'
+
+  # Sets the default options for when a new window is created. This also
+  # changes the defaults for when the state change commands, like
+  # `set-floating`, are used without any flags.
+  state_defaults:
+    floating:
+      # Whether to center floating windows by default.
+      centered: true
+
+      # Whether to show floating windows as always on top.
+      shown_on_top: false
+
+    fullscreen:
+      # Maximize the window if possible. If the window doesn't have a
+      # maximize button, then it'll be fullscreen'ed normally instead.
+      maximized: false
+
+      # Whether to show fullscreen windows as always on top.
+      shown_on_top: false
+
+workspaces:
+  # Monitor 0 gets workspaces 1-9, monitor 1 gets 11-19; workspace-nav.exe
+  # picks the right decade from whichever monitor is focused, querying the
+  # live monitor set over IPC -- so undocked it only ever resolves 1-9 and the
+  # 11-19 half of this list lies dormant. One config covers both layouts;
+  # what it can't do is survive the change in place, hence wm-refresh.exe.
+  - name: '1'
+    bind_to_monitor: 0
+    keep_alive: true
+  - name: '2'
+    bind_to_monitor: 0
+    keep_alive: true
+  - name: '3'
+    bind_to_monitor: 0
+    keep_alive: true
+  - name: '4'
+    bind_to_monitor: 0
+    keep_alive: true
+  - name: '5'
+    bind_to_monitor: 0
+    keep_alive: true
+  - name: '6'
+    bind_to_monitor: 0
+    keep_alive: true
+  - name: '7'
+    bind_to_monitor: 0
+    keep_alive: true
+  - name: '8'
+    bind_to_monitor: 0
+    keep_alive: true
+  - name: '9'
+    bind_to_monitor: 0
+    keep_alive: true
+  - name: '11'
+    bind_to_monitor: 1
+    keep_alive: true
+  - name: '12'
+    bind_to_monitor: 1
+    keep_alive: true
+  - name: '13'
+    bind_to_monitor: 1
+    keep_alive: true
+  - name: '14'
+    bind_to_monitor: 1
+    keep_alive: true
+  - name: '15'
+    bind_to_monitor: 1
+    keep_alive: true
+  - name: '16'
+    bind_to_monitor: 1
+    keep_alive: true
+  - name: '17'
+    bind_to_monitor: 1
+    keep_alive: true
+  - name: '18'
+    bind_to_monitor: 1
+    keep_alive: true
+  - name: '19'
+    bind_to_monitor: 1
+    keep_alive: true
+
+window_rules:
+  - commands: ['ignore']
+    match:
+      # Ignores any Zebar windows.
+      - window_process: { equals: 'zebar' }
+
+      # Ignores picture-in-picture windows for browsers.
+      - window_title: { regex: '[Pp]icture.in.[Pp]icture' }
+        window_class: { regex: 'Chrome_WidgetWin_1|MozillaDialogClass' }
+
+      # Ignore rules for various 3rd-party apps.
+      - window_process: { equals: 'PowerToys' }
+        window_class: { regex: 'HwndWrapper\[PowerToys\.PowerAccent.*?\]' }
+      - window_process: { equals: 'PowerToys' }
+        window_title: { regex: '.*? - Peek' }
+      - window_process: { equals: 'Lively' }
+        window_class: { regex: 'HwndWrapper' }
+      - window_process: { equals: 'EXCEL' }
+        window_class: { not_regex: 'XLMAIN' }
+      - window_process: { equals: 'WINWORD' }
+        window_class: { not_regex: 'OpusApp' }
+      - window_process: { equals: 'POWERPNT' }
+        window_class: { not_regex: 'PPTFrameClass' }
+
+binding_modes:
+  # When enabled, the focused window can be resized via arrow keys or HJKL.
+  - name: 'resize'
+    keybindings:
+      - commands: ['resize --width -2%']
+        bindings: ['k', 'left']
+      - commands: ['resize --width +2%']
+        bindings: ["'", 'right']
+      - commands: ['resize --height +2%']
+        bindings: [';', 'up']
+      - commands: ['resize --height -2%']
+        bindings: ['l', 'down']
+      # Press enter/escape to return to default keybindings.
+      - commands: ['wm-disable-binding-mode --name resize']
+        bindings: ['escape', 'enter']
+
+keybindings:
+  # Shift focus in a given direction, via a helper so the keys still work from
+  # a minimized window (see scripts/focus-dir.exe).
+  - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\focus-dir.exe left']
+    bindings: ['lwin+k', 'rwin+k', 'lwin+left', 'rwin+left']
+  - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\focus-dir.exe right']
+    bindings: ["lwin+'", "rwin+'", 'lwin+right', 'rwin+right']
+  - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\focus-dir.exe up']
+    bindings: ['lwin+;', 'rwin+;', 'lwin+up', 'rwin+up']
+  - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\focus-dir.exe down']
+    bindings: ['lwin+l', 'rwin+l', 'lwin+down', 'rwin+down']
+
+  # Move focused window in a given direction.
+  - commands: ['move --direction left']
+    bindings: ['lwin+shift+k', 'rwin+shift+k', 'lwin+ctrl+left', 'rwin+ctrl+left']
+  - commands: ['move --direction right']
+    bindings: ["lwin+shift+'", "rwin+shift+'", 'lwin+ctrl+right', 'rwin+ctrl+right']
+  - commands: ['move --direction up']
+    bindings: ['lwin+shift+;', 'rwin+shift+;', 'lwin+ctrl+up', 'rwin+ctrl+up']
+  - commands: ['move --direction down']
+    bindings: ['lwin+shift+l', 'rwin+shift+l', 'lwin+ctrl+down', 'rwin+ctrl+down']
+
+  # Resize focused window by a percentage or pixel amount.
+  - commands: ['resize --width -2%']
+    bindings: ['lwin+u', 'rwin+u']
+  - commands: ['resize --width +2%']
+    bindings: ['lwin+p', 'rwin+p']
+  - commands: ['resize --height +2%']
+    bindings: ['lwin+o', 'rwin+o']
+  - commands: ['resize --height -2%']
+    bindings: ['lwin+i', 'rwin+i']
+
+  # As an alternative to the resize keybindings above, resize mode enables
+  # resizing via arrow keys or HJKL. The binding mode is defined above with
+  # the name 'resize'.
+  - commands: ['wm-enable-binding-mode --name resize']
+    bindings: ['lwin+r', 'rwin+r']
+
+  # Disables window management and all other keybindings until lwin+shift+p
+  # is pressed again.
+  - commands: ['wm-toggle-pause']
+    bindings: ['lwin+shift+p', 'rwin+shift+p']
+
+  # Change tiling direction. This determines where new tiling windows will
+  # be inserted.
+  - commands: ['toggle-tiling-direction']
+    bindings: ['lwin+v', 'rwin+v']
+
+  # Change the focused window to be floating.
+  - commands: ['toggle-floating --centered']
+    bindings: ['lwin+shift+space', 'rwin+shift+space']
+
+  # Launch WezTerm terminal.
+  - commands: ['shell-exec %ProgramFiles%/WezTerm/wezterm-gui.exe']
+    bindings: ['lwin+t', 'rwin+t']
+
+  # Change the focused window to be fullscreen.
+  - commands: ['toggle-fullscreen']
+    bindings: ['lwin+f', 'rwin+f']
+
+  # Minimize focused window.
+  - commands: ['toggle-minimized']
+    bindings: ['lwin+m', 'rwin+m']
+
+  # Close focused window.
+  - commands: ['close']
+    bindings: ['lwin+q', 'rwin+q']
+
+  # Kill GlazeWM process safely.
+  - commands: ['wm-exit']
+    bindings: ['lwin+shift+e', 'rwin+shift+e']
+
+  # Re-evaluate configuration file.
+  - commands: ['wm-reload-config']
+    bindings: ['lwin+shift+r', 'rwin+shift+r']
+
+  # Restart GlazeWM (and with it Zebar) and load the config that matches the
+  # current monitor count: config.single.yaml for one monitor (native, fast
+  # workspace bindings), config.dual.yaml for two or more (the per-monitor
+  # workspace-nav.exe bindings). Press this after the monitor set changes --
+  # plugging, unplugging, or a KVM switch Windows saw as a disconnect.
+  # Deliberately manual: a watcher can't tell a KVM blip from a real undock.
+  - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\wm-refresh.exe']
+    bindings: ['lwin+alt+m', 'rwin+alt+m']
+
+  # Redraw all windows.
+  - commands: ['wm-redraw']
+    bindings: ['lwin+shift+w', 'rwin+shift+w']
+
+  # Launch CMD terminal. Alternatively, use `shell-exec wt` or
+  # `shell-exec %ProgramFiles%/Git/git-bash.exe` to start Windows
+  # Terminal and Git Bash respectively.
+  - commands: ['shell-exec cmd']
+    bindings: ['lwin+enter', 'rwin+enter']
+
+  # Cycle to the next/previous workspace within the current monitor's own
+  # 1-9/11-19 set, wrapping at each end, so each monitor is fully isolated
+  # (see scripts/workspace-nav.exe).
+  - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\workspace-nav.exe next']
+    bindings: ['lwin+d', 'rwin+d']
+  - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\workspace-nav.exe prev']
+    bindings: ['lwin+a', 'rwin+a']
+
+  # Focus the workspace that last had focus.
+  - commands: ['focus --recent-workspace']
+    bindings: ['lwin+s', 'rwin+s']
+
+
+  # Focus a monitor's current workspace without changing which one it shows.
+  # This is how an empty monitor gets focus now that hover doesn't do it, which
+  # lwin+N needs -- it resolves 1-9 vs 11-19 from the focused monitor.
+  # Undocked, the second of these addresses a monitor that isn't there and
+  # GlazeWM ignores it.
+  - commands: ['focus --monitor 0']
+    bindings: ['lwin+alt+k', 'rwin+alt+k']
+  - commands: ['focus --monitor 1']
+    bindings: ["lwin+alt+'", "rwin+alt+'"]
+
+  # Change focus to a workspace defined in `workspaces` config. Routed through
+  # a helper script so each monitor has its own independent 1-9 set (see the
+  # `workspaces` section above and scripts/workspace-nav.exe).
+  - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\workspace-nav.exe 1']
+    bindings: ['lwin+1', 'rwin+1']
+  - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\workspace-nav.exe 2']
+    bindings: ['lwin+2', 'rwin+2']
+  - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\workspace-nav.exe 3']
+    bindings: ['lwin+3', 'rwin+3']
+  - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\workspace-nav.exe 4']
+    bindings: ['lwin+4', 'rwin+4']
+  - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\workspace-nav.exe 5']
+    bindings: ['lwin+5', 'rwin+5']
+  - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\workspace-nav.exe 6']
+    bindings: ['lwin+6', 'rwin+6']
+  - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\workspace-nav.exe 7']
+    bindings: ['lwin+7', 'rwin+7']
+  - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\workspace-nav.exe 8']
+    bindings: ['lwin+8', 'rwin+8']
+  - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\workspace-nav.exe 9']
+    bindings: ['lwin+9', 'rwin+9']
+
+  # Move the focused window's parent workspace to a monitor in a given
+  # direction.
+  - commands: ['move-workspace --direction left']
+    bindings: ['lwin+shift+a', 'rwin+shift+a']
+  - commands: ['move-workspace --direction right']
+    bindings: ['lwin+shift+f', 'rwin+shift+f']
+  - commands: ['move-workspace --direction up']
+    bindings: ['lwin+shift+d', 'rwin+shift+d']
+  - commands: ['move-workspace --direction down']
+    bindings: ['lwin+shift+s', 'rwin+shift+s']
+
+  # Move focused window to a workspace defined in `workspaces` config, using
+  # the same per-monitor 1-9 resolution as the plain lwin+N bindings above.
+  - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\workspace-nav.exe 1 -Move']
+    bindings: ['lwin+ctrl+1', 'rwin+ctrl+1']
+  - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\workspace-nav.exe 2 -Move']
+    bindings: ['lwin+ctrl+2', 'rwin+ctrl+2']
+  - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\workspace-nav.exe 3 -Move']
+    bindings: ['lwin+ctrl+3', 'rwin+ctrl+3']
+  - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\workspace-nav.exe 4 -Move']
+    bindings: ['lwin+ctrl+4', 'rwin+ctrl+4']
+  - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\workspace-nav.exe 5 -Move']
+    bindings: ['lwin+ctrl+5', 'rwin+ctrl+5']
+  - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\workspace-nav.exe 6 -Move']
+    bindings: ['lwin+ctrl+6', 'rwin+ctrl+6']
+  - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\workspace-nav.exe 7 -Move']
+    bindings: ['lwin+ctrl+7', 'rwin+ctrl+7']
+  - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\workspace-nav.exe 8 -Move']
+    bindings: ['lwin+ctrl+8', 'rwin+ctrl+8']
+  - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\workspace-nav.exe 9 -Move']
+    bindings: ['lwin+ctrl+9', 'rwin+ctrl+9']
+
+  # Move focused window to the prev/next workspace within the current
+  # monitor's own set (wrapping, same as lwin+a/d above) and follow it.
+  # Kept on workspace-nav.exe even for a single monitor: GlazeWM has no
+  # documented native "move to next/prev workspace" command, only
+  # `move --workspace <exact-name>`, and this needs to resolve "current + 1
+  # (wrapping)" dynamically.
+  - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\workspace-nav.exe prev -Move']
+    bindings: ['lwin+ctrl+a', 'rwin+ctrl+a']
+  - commands: ['shell-exec %USERPROFILE%\.glzr\glazewm\scripts\workspace-nav.exe next -Move']
+    bindings: ['lwin+ctrl+d', 'rwin+ctrl+d']

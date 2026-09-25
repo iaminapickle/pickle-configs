@@ -16,7 +16,7 @@ using System.Collections.Generic;
 using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
-using System.Web.Script.Serialization;
+using System.Globalization;
 
 class WorkspaceNav
 {
@@ -77,8 +77,7 @@ class WorkspaceNav
         if (!int.TryParse(arg, out n) || n < 1 || n > 9) return null;
 
         string json = SendReceive(ws, "query monitors", token);
-        var serializer = new JavaScriptSerializer();
-        var root = (Dictionary<string, object>)serializer.DeserializeObject(json);
+        var root = (Dictionary<string, object>)Json.Parse(json);
         var data = (Dictionary<string, object>)root["data"];
         var monitors = (object[])data["monitors"];
 
@@ -105,8 +104,7 @@ class WorkspaceNav
     static string ResolveCycleTarget(ClientWebSocket ws, string direction, CancellationToken token)
     {
         string json = SendReceive(ws, "query workspaces", token);
-        var serializer = new JavaScriptSerializer();
-        var root = (Dictionary<string, object>)serializer.DeserializeObject(json);
+        var root = (Dictionary<string, object>)Json.Parse(json);
         var data = (Dictionary<string, object>)root["data"];
         var workspaces = (object[])data["workspaces"];
 
@@ -150,5 +148,125 @@ class WorkspaceNav
         } while (!result.EndOfMessage);
 
         return Encoding.UTF8.GetString(ms.ToArray());
+    }
+}
+
+// Minimal JSON reader, replacing System.Web.Script.Serialization so the exe no
+// longer loads System.Web.Extensions on every keypress. Produces the same shape
+// JavaScriptSerializer.DeserializeObject did -- Dictionary<string, object> for
+// objects, object[] for arrays, double for numbers -- so the callers above are
+// unchanged. Assumes GlazeWM's well-formed responses; a malformed one throws and
+// Main logs it.
+class Json
+{
+    readonly string s;
+    int i;
+
+    Json(string text) { s = text; }
+
+    public static object Parse(string text)
+    {
+        var p = new Json(text);
+        p.Ws();
+        return p.Value();
+    }
+
+    void Ws()
+    {
+        while (i < s.Length && (s[i] == ' ' || s[i] == '\t' || s[i] == '\n' || s[i] == '\r'))
+            i++;
+    }
+
+    object Value()
+    {
+        switch (s[i])
+        {
+            case '{': return ReadObject();
+            case '[': return ReadArray();
+            case '"': return ReadString();
+            case 't': i += 4; return true;
+            case 'f': i += 5; return false;
+            case 'n': i += 4; return null;
+            default: return ReadNumber();
+        }
+    }
+
+    Dictionary<string, object> ReadObject()
+    {
+        var obj = new Dictionary<string, object>();
+        i++; // '{'
+        Ws();
+        if (s[i] == '}') { i++; return obj; }
+
+        while (true)
+        {
+            Ws();
+            string key = ReadString();
+            Ws();
+            i++; // ':'
+            Ws();
+            obj[key] = Value();
+            Ws();
+            if (s[i++] == '}') return obj; // otherwise it was ','
+        }
+    }
+
+    object[] ReadArray()
+    {
+        var list = new List<object>();
+        i++; // '['
+        Ws();
+        if (s[i] == ']') { i++; return list.ToArray(); }
+
+        while (true)
+        {
+            Ws();
+            list.Add(Value());
+            Ws();
+            if (s[i++] == ']') return list.ToArray(); // otherwise it was ','
+        }
+    }
+
+    string ReadString()
+    {
+        var sb = new StringBuilder();
+        i++; // opening quote
+        while (true)
+        {
+            char c = s[i++];
+            if (c == '"') return sb.ToString();
+            if (c != '\\') { sb.Append(c); continue; }
+
+            char escape = s[i++];
+            switch (escape)
+            {
+                case '"': sb.Append('"'); break;
+                case '\\': sb.Append('\\'); break;
+                case '/': sb.Append('/'); break;
+                case 'b': sb.Append('\b'); break;
+                case 'f': sb.Append('\f'); break;
+                case 'n': sb.Append('\n'); break;
+                case 'r': sb.Append('\r'); break;
+                case 't': sb.Append('\t'); break;
+                case 'u':
+                    sb.Append((char)Convert.ToInt32(s.Substring(i, 4), 16));
+                    i += 4;
+                    break;
+            }
+        }
+    }
+
+    object ReadNumber()
+    {
+        int start = i;
+        while (i < s.Length)
+        {
+            char c = s[i];
+            if (c == '-' || c == '+' || c == '.' || c == 'e' || c == 'E' || (c >= '0' && c <= '9'))
+                i++;
+            else
+                break;
+        }
+        return double.Parse(s.Substring(start, i - start), CultureInfo.InvariantCulture);
     }
 }

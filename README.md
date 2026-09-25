@@ -54,24 +54,37 @@ chezmoi init --apply /path/to/pickle-configs
 
 - **GlazeWM's keybinding helpers exist to work around Win32 quirks.**
   `workspace-nav.exe` resolves `lwin+N` to the right per-monitor workspace by
-  talking to GlazeWM's WebSocket IPC directly (fast enough to sit under a
-  keypress); `focus-sync.exe` forces foreground onto the monitor GlazeWM
-  thinks is focused, because hovering onto an empty monitor updates GlazeWM's
-  internal state but not Win32's real foreground window. It also watches
-  `WM_DISPLAYCHANGE` and restarts Zebar when a display comes back without a
-  bar: a KVM switch drops the monitor's EDID, so Windows destroys the bar's
-  window, and nothing re-runs `startup_commands` when it returns.
+  talking to GlazeWM's WebSocket IPC directly. It's spawned on every workspace
+  keypress, so it's tuned for startup: it parses the IPC JSON by hand instead
+  of loading `System.Web.Extensions`, is built `x86`, and is `ngen`'d to a
+  native image (the `run_onchange` build script does this after each rebuild,
+  best-effort -- ngen needs an elevated `chezmoi apply`). `focus-sync.exe`
+  forces foreground onto the monitor GlazeWM thinks is focused, because
+  hovering onto an empty monitor updates GlazeWM's internal state but not
+  Win32's real foreground window. It also watches `WM_DISPLAYCHANGE` and
+  restarts Zebar when a display comes back without a bar: a KVM switch drops
+  the monitor's EDID, so Windows destroys the bar's window, and nothing
+  re-runs `startup_commands` when it returns.
 
-- **One GlazeWM config covers docked and undocked**, rather than a per-machine
-  setting -- the same laptop has two monitors at home and one at work, so the
-  layout is a runtime property. `workspace-nav.exe` reads the live monitor set
-  over IPC, and the 11-19 workspaces simply lie dormant with one monitor. What
-  a config can't do is survive the change in place: GlazeWM strands the
-  workspaces of a monitor that went away, and `wm-reload-config` won't rebuild
-  the mapping. `lwin+alt+m` runs `wm-refresh.exe` to restart GlazeWM and Zebar
-  and rebuild it. Only the Zebar half of that is automatic, above: a KVM
-  switch is indistinguishable from a real unplug, so a watcher that rebuilt
-  the whole WM would do it for a monitor count you are about to stop having.
+- **Two GlazeWM configs, one per layout, selected manually.** The same laptop
+  has two monitors at home and one at work. Docked uses `config.dual.yaml`,
+  whose `lwin+N` bindings run `workspace-nav.exe` to pick the right per-monitor
+  workspace (1-9 on monitor 0, 11-19 on monitor 1). Undocked uses
+  `config.single.yaml`, whose bindings are GlazeWM's own native `focus
+  --workspace` / `move --workspace` / `focus --next-workspace` -- no spawn, so
+  they're instant; the only holdout is move-window-to-next/prev-workspace,
+  which has no native command and stays on `workspace-nav.exe`. `config.yaml`
+  is the active file GlazeWM reads -- seeded once from the dual config via a
+  `create_` entry, then owned at runtime. `lwin+alt+m` runs `wm-refresh.exe`,
+  which counts monitors, copies the matching config over `config.yaml`, and
+  restarts GlazeWM and Zebar to rebuild the workspace mapping (which a
+  `wm-reload-config` can't do -- GlazeWM strands the workspaces of a monitor
+  that went away). This is deliberately manual: a KVM switch is
+  indistinguishable from a real unplug, so a watcher that rebuilt the whole WM
+  would do it for a monitor count you are about to stop having. (An earlier
+  `wm-watch.exe` auto-restarted on a gained monitor; it's been retired in
+  favour of the single manual key. Zebar's bar, above, is still restored
+  automatically, since that's cheap and unambiguous.)
 
 - **Day to day:**
   ```bash

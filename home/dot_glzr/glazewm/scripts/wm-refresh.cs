@@ -10,6 +10,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Net.WebSockets;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 
@@ -18,6 +19,11 @@ class WmRefresh
     const string Endpoint = "ws://127.0.0.1:6123";
     const string Fallback = @"C:\Program Files\glzr.io\GlazeWM\glazewm.exe";
     const string ZebarFallback = @"C:\Program Files\glzr.io\Zebar\zebar.exe";
+
+    delegate bool MonitorEnumProc(IntPtr monitor, IntPtr hdc, IntPtr rect, IntPtr data);
+
+    [DllImport("user32.dll")]
+    static extern bool EnumDisplayMonitors(IntPtr hdc, IntPtr clip, MonitorEnumProc callback, IntPtr data);
 
     static void Main()
     {
@@ -61,12 +67,20 @@ class WmRefresh
         }
 
         // Anything the shutdown commands missed would otherwise double up.
+        // wm-watch is no longer launched at startup; kill any lingering instance
+        // so an old one can't keep auto-restarting now that refresh is manual.
         KillAll("zebar");
         KillAll("focus-sync");
+        KillAll("wm-watch");
         Thread.Sleep(600);
 
         if (exe == null || !File.Exists(exe)) exe = Fallback;
         if (!File.Exists(exe)) { Log("glazewm.exe not found: " + exe); return; }
+
+        // Load the config matching the current monitor count before GlazeWM
+        // reads it: single-monitor gets the native, fast workspace bindings,
+        // two or more gets the per-monitor workspace-nav.exe bindings.
+        SelectConfig();
 
         var psi = new ProcessStartInfo(exe, "start");
         psi.UseShellExecute = true;
@@ -77,6 +91,40 @@ class WmRefresh
         // Zebar can miss one. Replace it once the IPC answers.
         if (!WaitIpcReady(15000)) Log("IPC did not answer; replacing Zebar anyway");
         RestartZebar(zebarExe);
+    }
+
+    // Copy config.single.yaml (one monitor) or config.dual.yaml (two or more)
+    // over the active config.yaml, so the relaunched GlazeWM reads the right
+    // bindings. A missing source is logged and left alone rather than breaking
+    // the restart.
+    static void SelectConfig()
+    {
+        try
+        {
+            string dir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                @".glzr\glazewm");
+            int count = MonitorCount();
+            string source = Path.Combine(dir, count <= 1 ? "config.single.yaml" : "config.dual.yaml");
+            string active = Path.Combine(dir, "config.yaml");
+
+            if (!File.Exists(source)) { Log("config source not found: " + source); return; }
+            File.Copy(source, active, true);
+            Log("selected " + Path.GetFileName(source) + " for " + count + " monitor(s)");
+        }
+        catch (Exception ex) { Log("config select failed: " + ex); }
+    }
+
+    static int MonitorCount()
+    {
+        int count = 0;
+        MonitorEnumProc tally = delegate(IntPtr monitor, IntPtr hdc, IntPtr rect, IntPtr data)
+        {
+            count++;
+            return true;
+        };
+        EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero, tally, IntPtr.Zero);
+        return count;
     }
 
     static void RestartZebar(string zebarExe)
