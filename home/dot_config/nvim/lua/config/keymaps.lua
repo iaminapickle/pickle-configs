@@ -67,3 +67,8 @@ map("n", "<C-r>", "<Cmd>e!<CR>", { desc = "Reload file from disk" })
 
 -- Shift-U to redo (overrides "undo line", frees up Ctrl-R for reload above)
 map("n", "U", "<C-r>", { desc = "Redo" })
+
+-- Pretty-print the whole buffer as JSON via jq (:%!jq .)
+vim.api.nvim_create_user_command("PrettyJson", "%!jq .", { desc = "Pretty-print buffer as JSON" })
+-- Allow lowercase :pretty_json (user commands must start uppercase, so abbreviate)
+vim.cmd([[cnoreabbrev <expr> pretty_json (getcmdtype() == ':' && getcmdline() ==# 'pretty_json') ? 'PrettyJson' : 'pretty_json']])
