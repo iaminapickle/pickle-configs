@@ -1,0 +1,21 @@
+{{- /* WSL only. Ubuntu ships `git send-email` in a separate package;
+       Arch pulls the perl deps via the package bootstrap instead. */ -}}
+{{- if and (eq .chezmoi.os "linux") (contains "microsoft" (lower (default "" .chezmoi.kernel.osrelease))) -}}
+#!/usr/bin/env bash
+set -euo pipefail
+
+log() { printf '\033[1;35m::\033[0m %s\n' "$*"; }
+
+# SASL auth is what Gmail SMTP needs; if it loads, we're already set.
+if perl -MAuthen::SASL -e1 >/dev/null 2>&1; then
+    exit 0
+fi
+
+if command -v apt-get >/dev/null; then
+    log "installing git-email (git send-email)"
+    sudo apt-get update -qq
+    sudo apt-get install -y git-email
+else
+    log "no apt-get; install git send-email manually"
+fi
+{{- end -}}

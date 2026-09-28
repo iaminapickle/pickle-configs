@@ -51,6 +51,18 @@
 	rebase = true
 [init]
 	defaultBranch = main
+[sendemail]
+	; send patches as the Workspace account, independent of user.email above
+	from = samuele.yang@morsemicro.com
+	smtpserver = smtp.gmail.com
+	smtpuser = samuele.yang@morsemicro.com
+	smtpencryption = tls
+	smtpserverport = 587
+; App password lives age-encrypted at ~/.config/git/smtp-credentials.
+; Scoped to Gmail SMTP so no other credentials ever hit disk. The :587
+; must match send-email's host:port, or the helper isn't consulted.
+[credential "smtp://smtp.gmail.com:587"]
+	helper = store --file ~/.config/git/smtp-credentials
 
 {{ if .workEmail -}}
 ; --- work identity ---------------------------------------------------------

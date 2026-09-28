@@ -46,6 +46,10 @@ packages:
       dev:
         - base-devel
         - git
+        # git send-email over Gmail SMTP (TLS + SASL auth)
+        - perl-authen-sasl
+        - perl-net-smtp-ssl
+        - perl-mime-tools
         - git-delta
         - lazygit
         - meld
