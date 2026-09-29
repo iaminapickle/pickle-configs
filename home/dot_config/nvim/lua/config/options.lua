@@ -4,6 +4,10 @@ opt.tabstop = 4
 opt.shiftwidth = 4
 opt.expandtab = true
 
+-- Render tabs and spaces distinctly
+opt.list = true
+opt.listchars = { tab = "→ ", lead = "·", trail = "·", nbsp = "␣" }
+
 opt.number = true
 opt.relativenumber = true
 opt.termguicolors = true
