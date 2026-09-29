@@ -1,0 +1,84 @@
+{{- if eq .chezmoi.os "windows" -}}
+# PSFzf wires fzf into the PowerShell console -- Ctrl+T file picker, Ctrl+R
+# history search, fzf-backed tab completion. It lives on the PowerShell Gallery
+# only (no winget/choco package), so install it here and drop a profile that
+# loads it. fzf itself is junegunn.fzf from packages.yaml.
+#
+# Targets Windows PowerShell 5.1: what WezTerm launches and what chezmoi runs
+# .ps1 scripts with. run_onchange re-runs whenever this file -- and so the
+# embedded profile below -- changes.
+
+$ErrorActionPreference = 'Stop'
+
+function Log($msg)  { Write-Host ":: $msg" -ForegroundColor Magenta }
+function Warn($msg) { Write-Host "-- $msg" -ForegroundColor Yellow }
+
+# fzf on PATH is what PSFzf shells out to; without it the module still imports
+# but every binding is a no-op. Warn rather than throw -- a fresh winget install
+# only reaches PATH in new processes, and this may be that first apply.
+if (-not (Get-Command fzf -ErrorAction SilentlyContinue)) {
+    Warn "fzf not on PATH yet -- PSFzf bindings do nothing until it is."
+    Warn "It installs from junegunn.fzf; open a new shell after the winget sync."
+}
+
+# --- PSFzf module ----------------------------------------------------------
+if (Get-Module -ListAvailable -Name PSFzf) {
+    Log "PSFzf already installed"
+} else {
+    Log "installing PSFzf from the PowerShell Gallery"
+
+    # 5.1 defaults to TLS 1.0/1.1; the Gallery and NuGet both refuse those.
+    [Net.ServicePointManager]::SecurityProtocol =
+        [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+
+    # Install-Module needs the NuGet provider; a clean 5.1 lacks it and would
+    # otherwise raise an interactive prompt mid-apply.
+    if (-not (Get-PackageProvider -Name NuGet -ErrorAction SilentlyContinue)) {
+        Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 `
+            -Scope CurrentUser -Force | Out-Null
+    }
+
+    # -Force also suppresses the "untrusted repository" confirmation that the
+    # PSGallery raises by default. A failure here throws, so chezmoi retries on
+    # the next apply rather than recording a half-done run_onchange.
+    Install-Module -Name PSFzf -Repository PSGallery -Scope CurrentUser -Force
+}
+
+# --- profile ---------------------------------------------------------------
+# GetFolderPath resolves a OneDrive-redirected Documents; $PROFILE would too,
+# but this script runs under chezmoi's host, not the console we're targeting.
+$docs     = [Environment]::GetFolderPath('MyDocuments')
+$profDir  = Join-Path $docs 'WindowsPowerShell'
+$profPath = Join-Path $profDir 'Microsoft.PowerShell_profile.ps1'
+
+$content = @'
+# Managed by chezmoi (47-psfzf-profile.ps1.tmpl) -- edit there, not here.
+
+# fzf + PSFzf, console host only (ISE / VS Code bring their own line editor).
+if ($Host.Name -eq 'ConsoleHost' -and (Get-Module -ListAvailable -Name PSFzf)) {
+    Import-Module PSFzf
+
+    # Ctrl+T -> file/dir picker, Ctrl+R -> reverse history search.
+    Set-PsFzfOption -PSReadlineChordProvider 'Ctrl+t' `
+                    -PSReadlineChordReverseHistory 'Ctrl+r'
+
+    # fzf-driven tab completion (picks up fd / rg automatically when present).
+    Set-PsFzfOption -TabExpansion
+}
+'@
+
+New-Item -ItemType Directory -Path $profDir -Force | Out-Null
+
+# Write only on a difference, so an unchanged apply stays quiet and the mtime
+# holds. -Raw makes the trailing-newline comparison honest; the BOM Set-Content
+# adds is stripped on read, so the two sides stay comparable.
+$have = if (Test-Path $profPath) { Get-Content $profPath -Raw } else { $null }
+if ($have -ne $content) {
+    Set-Content -Path $profPath -Value $content -Encoding UTF8
+    Log "wrote PowerShell profile -> $profPath"
+} else {
+    Log "PowerShell profile already current"
+}
+
+Log "PSFzf ready"
+{{- end -}}
