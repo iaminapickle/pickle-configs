@@ -205,6 +205,8 @@ packages:
         - sharkdp.bat
         - ajeetdsouza.zoxide
         - dandavison.delta
+        # nvim's :PrettyJson runs `%!jq .`
+        - jqlang.jq
 
         # The C compiler treesitter's parser build drives. The CLI that invokes
         # it has no winget package -- 46-tree-sitter-cli.ps1 fetches that.

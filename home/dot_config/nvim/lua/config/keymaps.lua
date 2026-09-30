@@ -68,8 +68,26 @@ map("n", "<C-r>", "<Cmd>e!<CR>", { desc = "Reload file from disk" })
 -- Shift-U to redo (overrides "undo line", frees up Ctrl-R for reload above)
 map("n", "U", "<C-r>", { desc = "Redo" })
 
--- Pretty-print the whole buffer as JSON via jq (:%!jq .)
-vim.api.nvim_create_user_command("PrettyJson", "%!jq .", { desc = "Pretty-print buffer as JSON" })
+-- Pretty-print the whole buffer as JSON via jq (:%!jq .). On Windows, editing a
+-- file over a \\wsl.localhost UNC path leaves nvim's cwd as a UNC path, which
+-- cmd.exe can't use as a working dir -- it prints a "UNC paths are not supported"
+-- warning that shellredir (>%s 2>&1) then merges into the filtered output. jq
+-- reads stdin, so run the filter from a normal dir to dodge the warning.
+vim.api.nvim_create_user_command("PrettyJson", function()
+  local restore
+  if vim.fn.has("win32") == 1 and vim.fn.getcwd():match("^[\\/][\\/]") then
+    restore = vim.fn.getcwd()
+    local tmp = vim.fn.expand("$TEMP")
+    vim.cmd("lcd " .. vim.fn.fnameescape((tmp ~= "" and tmp ~= "$TEMP") and tmp or "C:\\"))
+  end
+  local ok, err = pcall(vim.cmd, "%!jq .")
+  if restore then
+    vim.cmd("lcd " .. vim.fn.fnameescape(restore))
+  end
+  if not ok then
+    vim.notify(tostring(err), vim.log.levels.ERROR)
+  end
+end, { desc = "Pretty-print buffer as JSON" })
 -- Allow lowercase :pretty_json (user commands must start uppercase, so abbreviate)
 vim.cmd([[cnoreabbrev <expr> pretty_json (getcmdtype() == ':' && getcmdline() ==# 'pretty_json') ? 'PrettyJson' : 'pretty_json']])
 
