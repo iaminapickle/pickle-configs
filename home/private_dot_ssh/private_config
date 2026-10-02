@@ -14,3 +14,5 @@ Host *
     IdentityFile ~/.ssh/work_github
     IdentityFile ~/.ssh/personal
     IdentitiesOnly yes
+    ServerAliveInterval 15
+    ServerAliveCountMax 4
