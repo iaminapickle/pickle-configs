@@ -10,16 +10,18 @@ return {
 
     windowRounding = 8,
 
-    -- Sequential workspace switching now also on Super+D/A (originals kept)
-    kbNextWs = { "SUPER + mouse_down", "CTRL + SUPER + Right", "SUPER + Page_Down", "SUPER + D" },
-    kbPrevWs = { "SUPER + mouse_up", "CTRL + SUPER + Left", "SUPER + Page_Up", "SUPER + A" },
+    -- Sequential workspace switching now also on Super+D/A. Ctrl+Super+Left/Right
+    -- dropped here: they move the window instead, matching Ctrl+Super+A/D below.
+    kbNextWs = { "SUPER + mouse_down", "SUPER + Page_Down", "SUPER + D" },
+    kbPrevWs = { "SUPER + mouse_up", "SUPER + Page_Up", "SUPER + A" },
 
     -- Ctrl+Super+A/D repurposed below to move the window instead of cycling
     -- workspace groups, so group cycling is mouse-only now (default kept).
 
     -- Move active window to prev/next tab (workspace) now also on Ctrl+Super+A/D
-    kbMoveWinToWsPrev = { "SUPER + ALT + mouse_up", "SUPER + ALT + Page_Up", "CTRL + SUPER + SHIFT + Left", "CTRL + SUPER + A" },
-    kbMoveWinToWsNext = { "SUPER + ALT + mouse_down", "SUPER + ALT + Page_Down", "CTRL + SUPER + SHIFT + Right", "CTRL + SUPER + D" },
+    -- and Ctrl+Super+Left/Right
+    kbMoveWinToWsPrev = { "SUPER + ALT + mouse_up", "SUPER + ALT + Page_Up", "CTRL + SUPER + SHIFT + Left", "CTRL + SUPER + A", "CTRL + SUPER + Left" },
+    kbMoveWinToWsNext = { "SUPER + ALT + mouse_down", "SUPER + ALT + Page_Down", "CTRL + SUPER + SHIFT + Right", "CTRL + SUPER + D", "CTRL + SUPER + Right" },
 
     -- Free up Ctrl+Super+<num> (was focus-workspace-group) for the window-move
     -- bind added in hypr-user.lua
