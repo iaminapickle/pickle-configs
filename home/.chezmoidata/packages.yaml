@@ -224,5 +224,9 @@ services:
     - NetworkManager
     - bluetooth
     - ufw
+  # D-Bus-activated units whose [Install] has only an Alias=, so `enable`
+  # never starts them at boot. A drop-in adds WantedBy=multi-user.target.
+  boot:
+    - ratbagd
   user:
     - syncthing

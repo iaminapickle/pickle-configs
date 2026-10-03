@@ -8,6 +8,7 @@ set -euo pipefail
 log() { printf '\033[1;35m::\033[0m %s\n' "$*"; }
 
 SYSTEM_UNITS=({{ range .services.system }}{{ . }} {{ end }})
+BOOT_UNITS=({{ range .services.boot }}{{ . }} {{ end }})
 USER_UNITS=({{ range .services.user }}{{ . }} {{ end }})
 
 for unit in "${SYSTEM_UNITS[@]}"; do
@@ -15,6 +16,20 @@ for unit in "${SYSTEM_UNITS[@]}"; do
        && ! systemctl is-enabled --quiet "${unit}.service" 2>/dev/null; then
         log "enabling ${unit}.service (system)"
         sudo systemctl enable --now "${unit}.service"
+    fi
+done
+
+# is-enabled already reports these as enabled (via their Alias=), so key off
+# the multi-user.target.wants symlink instead.
+for unit in "${BOOT_UNITS[@]}"; do
+    if systemctl list-unit-files "${unit}.service" >/dev/null 2>&1 \
+       && [[ ! -L "/etc/systemd/system/multi-user.target.wants/${unit}.service" ]]; then
+        log "enabling ${unit}.service at boot (system)"
+        sudo mkdir -p "/etc/systemd/system/${unit}.service.d"
+        printf '[Install]\nWantedBy=multi-user.target\n' \
+            | sudo tee "/etc/systemd/system/${unit}.service.d/boot.conf" >/dev/null
+        sudo systemctl daemon-reload
+        sudo systemctl reenable --now "${unit}.service"
     fi
 done
 
