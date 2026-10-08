@@ -12,6 +12,10 @@ opt.number = true
 opt.relativenumber = true
 opt.termguicolors = true
 
+-- Prefer LF for new files on Windows too, so files stay aligned with Linux.
+-- Existing CRLF files are still detected and preserved.
+opt.fileformats = { "unix", "dos" }
+
 -- WSLg doesn't reliably bridge X11's clipboard to Windows', so reach the real
 -- one via win32yank. Installed by 35-wsl-win32yank.sh, which keeps the binary
 -- Windows-side (96ms vs 63ms per call off ext4) and symlinks it into
