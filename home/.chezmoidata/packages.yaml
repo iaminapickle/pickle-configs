@@ -140,10 +140,6 @@ packages:
         - vlc-plugins-all
         - libreoffice-still
         - zed
-        # PDF (MuPDF backend) and comic book (.cbz/.cbr) viewer
-        - zathura
-        - zathura-pdf-mupdf
-        - zathura-cb
 
       hardware:
         - solaar
@@ -186,6 +182,8 @@ packages:
         - filen-desktop-bin
         - obinskit
         - astra-airlock
+        # PDF viewer with highlights. Only the -git build is maintained.
+        - sioyek-git
 
       network:
         - openvpn3
