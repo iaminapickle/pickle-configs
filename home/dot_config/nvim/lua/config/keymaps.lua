@@ -68,28 +68,44 @@ map("n", "<C-r>", "<Cmd>e!<CR>", { desc = "Reload file from disk" })
 -- Shift-U to redo (overrides "undo line", frees up Ctrl-R for reload above)
 map("n", "U", "<C-r>", { desc = "Redo" })
 
--- Pretty-print the whole buffer as JSON via jq (:%!jq .). On Windows, editing a
+-- Filter the whole buffer through jq (:%!jq <args>). On Windows, editing a
 -- file over a \\wsl.localhost UNC path leaves nvim's cwd as a UNC path, which
 -- cmd.exe can't use as a working dir -- it prints a "UNC paths are not supported"
 -- warning that shellredir (>%s 2>&1) then merges into the filtered output. jq
 -- reads stdin, so run the filter from a normal dir to dodge the warning.
-vim.api.nvim_create_user_command("PrettyJson", function()
+local function jq_buffer(args)
   local restore
   if vim.fn.has("win32") == 1 and vim.fn.getcwd():match("^[\\/][\\/]") then
     restore = vim.fn.getcwd()
     local tmp = vim.fn.expand("$TEMP")
     vim.cmd("lcd " .. vim.fn.fnameescape((tmp ~= "" and tmp ~= "$TEMP") and tmp or "C:\\"))
   end
-  local ok, err = pcall(vim.cmd, "%!jq .")
+  local ok, err = pcall(vim.cmd, "%!jq " .. args)
   if restore then
     vim.cmd("lcd " .. vim.fn.fnameescape(restore))
   end
   if not ok then
     vim.notify(tostring(err), vim.log.levels.ERROR)
   end
+  return ok and vim.v.shell_error == 0
+end
+
+vim.api.nvim_create_user_command("PrettyJson", function()
+  jq_buffer(".")
 end, { desc = "Pretty-print buffer as JSON" })
--- Allow lowercase :pretty_json (user commands must start uppercase, so abbreviate)
+
+-- Minify the buffer to a single line with LF and no trailing newline, matching
+-- what OpenWrt's build writes for profiles.json etc.
+vim.api.nvim_create_user_command("UnprettyJson", function()
+  if jq_buffer("-c .") then
+    vim.opt_local.fileformat = "unix"
+    vim.opt_local.fixendofline = false
+    vim.opt_local.endofline = false
+  end
+end, { desc = "Minify buffer as single-line JSON (LF, no trailing newline)" })
+-- Allow lowercase :pretty_json/:unpretty_json (user commands must start uppercase, so abbreviate)
 vim.cmd([[cnoreabbrev <expr> pretty_json (getcmdtype() == ':' && getcmdline() ==# 'pretty_json') ? 'PrettyJson' : 'pretty_json']])
+vim.cmd([[cnoreabbrev <expr> unpretty_json (getcmdtype() == ':' && getcmdline() ==# 'unpretty_json') ? 'UnprettyJson' : 'unpretty_json']])
 
 -- Print the current file's full path (and copy it to the system clipboard)
 vim.api.nvim_create_user_command("Path", function()
