@@ -140,6 +140,10 @@ packages:
         - vlc-plugins-all
         - libreoffice-still
         - zed
+        # PDF (MuPDF backend) and comic book (.cbz/.cbr) viewer
+        - zathura
+        - zathura-pdf-mupdf
+        - zathura-cb
 
       hardware:
         - solaar
