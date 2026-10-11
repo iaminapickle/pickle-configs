@@ -50,10 +50,8 @@ CustomMouseArea {
         return y > height - Math.max(Config.border.minThickness, Config.border.thickness + panelHeight) - (isCorner ? Config.border.rounding : 0) && withinPanelWidth(panel, x, y);
     }
 
-    // The OSD (volume/brightness) never opens on hover: it follows the dashboard
-    // (OS logo click), or pops up briefly on a volume/brightness change. `hovered`
-    // only stops its hide timer, so it stays pinned while the dashboard is open and
-    // while the pointer is on it. Leaving a change-triggered OSD dismisses it.
+    // The OSD (volume/brightness) never opens on hover or on value changes: it
+    // only follows the dashboard (OS logo click).
     function updateOsdHover(inOsd: bool): void {
         if (panels.osd.hovered && !inOsd && !screenState.dashboard)
             screenState.osd = false;
