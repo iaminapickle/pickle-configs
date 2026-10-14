@@ -216,6 +216,11 @@ packages:
         # pdftotext, for the *.pdf preview in lua/config/pdf.lua.
         - oschwartz10612.Poppler
 
+      # The default browser can't be set from a script (UserChoice is
+      # hash-protected); pick it in Settings > Default apps.
+      apps:
+        - Brave.Brave
+
     # Fallback for anything winget lacks. Empty means choco is never touched;
     # adding a group bootstraps it on demand (needs an elevated apply).
     choco: {}

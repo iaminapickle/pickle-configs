@@ -1,0 +1,60 @@
+{{- if eq .chezmoi.os "windows" -}}
+# Brave policies: SlimBrave's Developer preset, applied headlessly. SlimBrave
+# (ltx0101/SlimBrave@ebc97d9, archived) is a WinForms GUI with no CLI mode,
+# and its Apply button only writes these values under the policy key, so we
+# write them directly. Like SlimBrave this is additive -- dropping a line here
+# leaves the old value behind; delete it from the key by hand.
+# DefaultBrowserSettingEnabled=0 stops Brave nagging to be the default, so set
+# the default in Settings -> Default apps instead.
+
+$ErrorActionPreference = 'Stop'
+
+function Log($msg) { Write-Host ":: $msg" -ForegroundColor Magenta }
+
+# HKLM needs admin, and apply usually isn't elevated: re-run this same file
+# elevated (one UAC prompt). A declined prompt throws, so the apply fails and
+# run_onchange retries next time rather than recording a run that never wrote.
+$admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
+    [Security.Principal.WindowsBuiltInRole]::Administrator)
+if (-not $admin) {
+    Log "elevating to write Brave policies"
+    $p = Start-Process powershell -Verb RunAs -Wait -PassThru -ArgumentList @(
+        '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$($MyInvocation.MyCommand.Path)`"")
+    if ($p.ExitCode -ne 0) { throw "elevated Brave policy write failed (exit $($p.ExitCode))" }
+    return
+}
+
+$key = 'HKLM:\SOFTWARE\Policies\BraveSoftware\Brave'
+
+$dword = [ordered]@{
+    # Telemetry & reporting
+    MetricsReportingEnabled                 = 0
+    SafeBrowsingExtendedReportingEnabled    = 0
+    UrlKeyedAnonymizedDataCollectionEnabled = 0
+    FeedbackSurveysEnabled                  = 0
+    # Brave features
+    BraveRewardsDisabled                    = 1
+    BraveWalletDisabled                     = 1
+    BraveVPNDisabled                        = 1
+    BraveAIChatEnabled                      = 0
+    # Performance & bloat
+    BackgroundModeEnabled                   = 0
+    MediaRecommendationsEnabled             = 0
+    ShoppingListEnabled                     = 0
+    PromotionsEnabled                       = 0
+    DefaultBrowserSettingEnabled            = 0
+}
+$string = [ordered]@{
+    DnsOverHttpsMode = 'automatic'
+}
+
+if (-not (Test-Path $key)) { New-Item -Path $key -Force | Out-Null }
+foreach ($name in $dword.Keys) {
+    Set-ItemProperty -Path $key -Name $name -Value $dword[$name] -Type DWord -Force
+}
+foreach ($name in $string.Keys) {
+    Set-ItemProperty -Path $key -Name $name -Value $string[$name] -Type String -Force
+}
+
+Log "Brave policies applied (restart Brave; check brave://policy)"
+{{- end -}}
