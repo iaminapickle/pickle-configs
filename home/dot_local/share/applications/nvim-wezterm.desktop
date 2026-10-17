@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Neovim (WezTerm)
+GenericName=Text Editor
+Comment=Edit text files in Neovim inside WezTerm
+Exec=wezterm start -- nvim %F
+Icon=nvim
+Terminal=false
+MimeType=text/plain;text/markdown;text/x-log;application/x-shellscript;
+Categories=Utility;TextEditor;
