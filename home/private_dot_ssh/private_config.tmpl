@@ -1,0 +1,41 @@
+Host bitbucket.org
+    IdentityFile ~/.ssh/work_bitbucket
+    IdentitiesOnly yes
+
+Host 10.42.0.*
+    StrictHostKeyChecking no
+    UserKnownHostsFile /dev/null
+    LogLevel ERROR
+
+Host 192.168.*
+    StrictHostKeyChecking no
+    UserKnownHostsFile /dev/null
+    LogLevel ERROR
+
+Host 10.99.0.*
+    StrictHostKeyChecking no
+    UserKnownHostsFile /dev/null
+    LogLevel ERROR
+{{- if and (eq .chezmoi.os "linux") (contains "microsoft" (lower (default "" .chezmoi.kernel.osrelease))) }}
+
+# WSL mirrored mode picks the wrong source IP; pin it per dev subnet,
+# only when that alias exists (skipped when the NIC is on DHCP)
+Match host 10.99.0.* exec "ip -4 addr | grep -q 'inet 10.99.0.50/'"
+    BindAddress 10.99.0.50
+
+Match host 10.42.0.* exec "ip -4 addr | grep -q 'inet 10.42.0.50/'"
+    BindAddress 10.42.0.50
+
+Match host 192.168.8.* exec "ip -4 addr | grep -q 'inet 192.168.8.50/'"
+    BindAddress 192.168.8.50
+
+Match host 192.168.12.* exec "ip -4 addr | grep -q 'inet 192.168.12.50/'"
+    BindAddress 192.168.12.50
+{{- end }}
+
+Host *
+    IdentityFile ~/.ssh/work_github
+    IdentityFile ~/.ssh/personal
+    IdentitiesOnly yes
+    ServerAliveInterval 15
+    ServerAliveCountMax 4
