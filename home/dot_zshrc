@@ -79,7 +79,7 @@ alias srczrc="source ~/.zshrc"
 if command -v openvpn3 >/dev/null 2>&1; then
     alias vpn="openvpn3 session-start --config ~/.config/openvpn/work.ovpn"
     alias vpncheck="openvpn3 sessions-list"
-    alias vpndown="openvpn3 session-manage --config work.ovpn --disconnect"
+    alias vpndown="openvpn3 session-manage --config ~/.config/openvpn/work.ovpn --disconnect"
 fi
 # Mirror of reboot-to-cachy: the same one-shot variables, so Windows boots without
 # the menu and Limine records it as the last entry. efibootmgr --bootnext would skip
