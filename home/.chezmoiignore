@@ -82,7 +82,7 @@ AppData
 # ---------------------------------------------------------------------------
 # WSL: detected by the kernel string, not a prompt -- a machine does not stop
 # being WSL. No desktop and a different shell setup, so ignore all and
-# un-ignore only the git identity, keys, zshrc and nvim.
+# un-ignore only the git identity, keys, zshrc, quilt and nvim.
 # ---------------------------------------------------------------------------
 {{ if and (eq .chezmoi.os "linux") (contains "microsoft" (lower (default "" .chezmoi.kernel.osrelease))) }}
 **
@@ -99,6 +99,7 @@ AppData
 !.ssh/**
 !.zshrc
 !.p10k.zsh
+!.quiltrc
 !.config/nvim
 !.config/nvim/**
 {{ end }}
