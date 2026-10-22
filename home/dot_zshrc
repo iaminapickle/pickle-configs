@@ -288,14 +288,14 @@ gitcom() {
 
 # Rebase the current branch onto the freshly fetched remote default branch,
 # not the local one, which is usually stale.
-gitrm() {
+gitrem() {
     local remote branch
     remote=${1:-origin}
     if ! git remote get-url "$remote" >/dev/null 2>&1; then
         remote=$(git remote | head -1)
     fi
     if ! branch=$(git-default-branch "$remote"); then
-        echo "gitrm: could not determine the default branch" >&2
+        echo "gitrem: could not determine the default branch" >&2
         return 1
     fi
     git fetch "$remote" "$branch" && git rebase "$remote/$branch"
